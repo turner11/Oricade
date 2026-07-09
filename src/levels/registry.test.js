@@ -61,6 +61,13 @@ describe('LEVELS', () => {
     expect(trapDungeon.objective).toBe('Navigate parkour to the artifact')
     expect(trapDungeon.mechanics).toEqual(['move', 'jump', 'crouch', 'magic'])
   })
+
+  it('includes the Comedic Boss level with all capabilities unlocked', () => {
+    const boss = LEVELS.find((l) => l.theme === 'Comedic Boss')
+    expect(boss).toBeDefined()
+    expect(boss.objective).toBe('Defeat the multi-phase mashup boss')
+    expect(boss.mechanics).toEqual(['move', 'jump', 'shoot', 'crouch', 'magic'])
+  })
 })
 
 describe('getLevel', () => {
