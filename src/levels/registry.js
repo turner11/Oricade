@@ -4,6 +4,7 @@ import { createRuntime as createBasketballRuntime } from './basketball.js'
 import { createRuntime as createPlatformerRuntime } from './platformer.js'
 import { createRuntime as createBrawlerRuntime } from './brawler.js'
 import { createRuntime as createUnicornRuntime } from './unicorn.js'
+import { createRuntime as createSpaceFleetRuntime } from './spacefleet.js'
 
 const MECHANIC_LABELS = {
   move: 'Move',
@@ -61,6 +62,14 @@ export const LEVELS = [
     objective: 'Collect 5 magic gems',
     mechanics: ['move', 'jump', 'magic'],
     createRuntime: createUnicornRuntime,
+  },
+  {
+    id: 7,
+    theme: 'Space Fleet',
+    perspective: 'First-person (Cockpit view)',
+    objective: 'Destroy 3 enemy waves',
+    mechanics: ['move', 'shoot'],
+    createRuntime: createSpaceFleetRuntime,
   },
 ]
 
