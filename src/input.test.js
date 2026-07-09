@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { P1_KEYS, P2_KEYS, keysToState, gamepadToState, mergeStates, computeInputState } from './input.js'
+import { P1_KEYS, P2_KEYS, keysToState, gamepadToState, mergeStates, computeInputState, formatKeyCode, describeKeyMap } from './input.js'
 
 function fakeGamepad({ axes = [0, 0], buttons = {} } = {}) {
   const b = Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }))
@@ -80,6 +80,28 @@ describe('mergeStates', () => {
       crouch: false,
       magic: false,
     })
+  })
+})
+
+describe('formatKeyCode', () => {
+  it('gives a readable label for known key codes', () => {
+    expect(formatKeyCode('KeyW')).toBe('W')
+    expect(formatKeyCode('ArrowUp')).toBe('Arrow Up')
+    expect(formatKeyCode('Numpad0')).toBe('Numpad 0')
+  })
+
+  it('falls back to the raw code for an unknown key', () => {
+    expect(formatKeyCode('SomeWeirdKey')).toBe('SomeWeirdKey')
+  })
+})
+
+describe('describeKeyMap', () => {
+  it('lists every action with a readable P1 and P2 key label', () => {
+    const rows = describeKeyMap()
+    expect(rows.length).toBe(8) // up/down/left/right/jump/shoot/crouch/magic
+    const jumpRow = rows.find((r) => r.action === 'jump')
+    expect(jumpRow.p1).toBe('Space')
+    expect(jumpRow.p2).toBe('Numpad 0')
   })
 })
 

@@ -27,6 +27,10 @@ export function levelWon(state, totalLevels) {
     : { ...state, screen: SCREENS.VICTORY }
 }
 
+export function selectLevel(state, levelIndex) {
+  return { ...state, levelIndex, screen: SCREENS.INTERSTITIAL }
+}
+
 export function levelFailed(state) {
   const lives = state.lives - 1
   return lives > 0

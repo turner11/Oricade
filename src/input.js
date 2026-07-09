@@ -20,6 +20,38 @@ export const P2_KEYS = {
   magic: 'Numpad2',
 }
 
+const KEY_LABELS = {
+  KeyW: 'W',
+  KeyA: 'A',
+  KeyS: 'S',
+  KeyD: 'D',
+  Space: 'Space',
+  KeyF: 'F',
+  ShiftLeft: 'Left Shift',
+  KeyE: 'E',
+  ArrowUp: 'Arrow Up',
+  ArrowDown: 'Arrow Down',
+  ArrowLeft: 'Arrow Left',
+  ArrowRight: 'Arrow Right',
+  Numpad0: 'Numpad 0',
+  Numpad1: 'Numpad 1',
+  ControlRight: 'Right Ctrl',
+  Numpad2: 'Numpad 2',
+}
+
+export function formatKeyCode(code) {
+  return KEY_LABELS[code] ?? code
+}
+
+export function describeKeyMap() {
+  const actions = ['up', 'down', 'left', 'right', 'jump', 'shoot', 'crouch', 'magic']
+  return actions.map((action) => ({
+    action,
+    p1: formatKeyCode(P1_KEYS[action]),
+    p2: formatKeyCode(P2_KEYS[action]),
+  }))
+}
+
 const GAMEPAD_BUTTONS = { jump: 0, shoot: 2, magic: 3, crouch: 6 }
 const STICK_DEADZONE = 0.2
 

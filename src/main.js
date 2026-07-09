@@ -1,9 +1,9 @@
 import * as THREE from 'three'
 import { createScene } from './scene.js'
-import { InputController } from './input.js'
+import { InputController, describeKeyMap } from './input.js'
 import { CHARACTER, createWorld, createGroundBody, createPlayerBody } from './physics.js'
 import { PlayerController } from './player-controller.js'
-import { SCREENS, createGameState, start, interstitialDone, levelWon, levelFailed } from './game-loop.js'
+import { SCREENS, createGameState, start, interstitialDone, levelWon, levelFailed, selectLevel } from './game-loop.js'
 import { LEVELS, getLevel, describeMechanics } from './levels/registry.js'
 import { PALETTE } from './theme.js'
 import { updateBursts } from './effects/particles.js'
@@ -81,6 +81,61 @@ debugOverlay.id = 'input-debug'
 debugOverlay.style.cssText =
   'position:fixed;top:0;left:0;margin:0;padding:8px;color:#0f0;background:rgba(0,0,0,0.6);font:12px monospace;pointer-events:none;'
 document.body.appendChild(debugOverlay)
+
+const helperPanel = document.createElement('div')
+helperPanel.id = 'helper-panel'
+helperPanel.style.cssText =
+  'position:fixed;top:0;right:0;bottom:0;width:280px;display:none;flex-direction:column;gap:12px;padding:16px;overflow-y:auto;background:rgba(0,0,0,0.85);color:#fff;font-family:sans-serif;font-size:13px;z-index:10;'
+document.body.appendChild(helperPanel)
+
+function renderHelperPanel() {
+  const keyRows = describeKeyMap()
+    .map((row) => `<tr><td>${row.action}</td><td>${row.p1}</td><td>${row.p2}</td></tr>`)
+    .join('')
+  const level = getLevel(gameState.levelIndex)
+  const levelButtons = LEVELS.map(
+    (l, i) => `<button data-level-index="${i}" style="display:block;width:100%;margin-bottom:4px;">${l.id}. ${l.theme}</button>`,
+  ).join('')
+
+  helperPanel.innerHTML = `
+    <h3 style="margin:0;">Helper (H to close)</h3>
+    <div>
+      <h4 style="margin:4px 0;">Current level</h4>
+      <p style="margin:2px 0;">${level.theme} — ${level.objective}</p>
+      <p style="margin:2px 0;">Controls: ${describeMechanics(level.mechanics)}</p>
+      <button id="helper-restart-btn">Restart Level</button>
+    </div>
+    <div>
+      <h4 style="margin:4px 0;">Keyboard mapping</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <tr><th align="left">Action</th><th align="left">P1</th><th align="left">P2</th></tr>
+        ${keyRows}
+      </table>
+    </div>
+    <div>
+      <h4 style="margin:4px 0;">Select level</h4>
+      ${levelButtons}
+    </div>
+  `
+
+  document.getElementById('helper-restart-btn').addEventListener('click', () => {
+    if (gameState.screen === SCREENS.LEVEL) enterLevel(gameState.levelIndex)
+  })
+  helperPanel.querySelectorAll('[data-level-index]').forEach((btn) => {
+    btn.addEventListener('click', () => applyTransition(selectLevel, Number(btn.dataset.levelIndex)))
+  })
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'KeyH') return
+  const showing = helperPanel.style.display === 'flex'
+  if (showing) {
+    helperPanel.style.display = 'none'
+  } else {
+    renderHelperPanel()
+    helperPanel.style.display = 'flex'
+  }
+})
 
 let gameState = createGameState()
 
