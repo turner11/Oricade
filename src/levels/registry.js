@@ -6,6 +6,7 @@ import { createRuntime as createBrawlerRuntime } from './brawler.js'
 import { createRuntime as createUnicornRuntime } from './unicorn.js'
 import { createRuntime as createSpaceFleetRuntime } from './spacefleet.js'
 import { createRuntime as createTrapDungeonRuntime } from './trapdungeon.js'
+import { createRuntime as createBossRuntime } from './boss.js'
 
 const MECHANIC_LABELS = {
   move: 'Move',
@@ -79,6 +80,14 @@ export const LEVELS = [
     objective: 'Navigate parkour to the artifact',
     mechanics: ['move', 'jump', 'crouch', 'magic'],
     createRuntime: createTrapDungeonRuntime,
+  },
+  {
+    id: 9,
+    theme: 'Comedic Boss',
+    perspective: 'Dynamic (Swaps per phase)',
+    objective: 'Defeat the multi-phase mashup boss',
+    mechanics: ['move', 'jump', 'shoot', 'crouch', 'magic'],
+    createRuntime: createBossRuntime,
   },
 ]
 
