@@ -33,6 +33,13 @@ describe('LEVELS', () => {
     expect(platformer.objective).toBe('Navigate hazards to reach the flag')
     expect(platformer.mechanics).toEqual(['move', 'jump', 'crouch'])
   })
+
+  it('includes the Brawler level per the Level Matrix', () => {
+    const brawler = LEVELS.find((l) => l.theme === 'Brawler')
+    expect(brawler).toBeDefined()
+    expect(brawler.objective).toBe('Deplete opponent health bar')
+    expect(brawler.mechanics).toEqual(['move', 'jump', 'crouch', 'shoot'])
+  })
 })
 
 describe('getLevel', () => {
