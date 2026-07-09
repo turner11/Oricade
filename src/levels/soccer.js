@@ -44,6 +44,44 @@ export function computeKickImpulse(playerPosition, ballPosition, force) {
   return { x: (dx / dist) * force, y: 0, z: (dz / dist) * force }
 }
 
+// White posts, crossbar, and translucent net standing on the goal line.
+function createGoalFrame() {
+  const goal = new THREE.Group()
+  goal.name = 'goal'
+  const centerZ = (GOAL_ZONE.zMin + GOAL_ZONE.zMax) / 2
+  const width = GOAL_ZONE.zMax - GOAL_ZONE.zMin
+  const white = new THREE.MeshStandardMaterial({ color: 0xffffff })
+
+  const postGeometry = new THREE.CylinderGeometry(0.08, 0.08, 2)
+  for (const [name, z] of [
+    ['post-left', GOAL_ZONE.zMin],
+    ['post-right', GOAL_ZONE.zMax],
+  ]) {
+    const post = new THREE.Mesh(postGeometry, white)
+    post.name = name
+    post.position.set(0, 1, z - centerZ)
+    goal.add(post)
+  }
+
+  const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, width), white)
+  crossbar.name = 'crossbar'
+  crossbar.rotation.x = Math.PI / 2
+  crossbar.position.y = 2
+  goal.add(crossbar)
+
+  const net = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, 2),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.25, side: THREE.DoubleSide }),
+  )
+  net.name = 'net'
+  net.rotation.y = Math.PI / 2
+  net.position.set(0.8, 1, 0)
+  goal.add(net)
+
+  goal.position.set(GOAL_ZONE.xMin, 0, centerZ)
+  return goal
+}
+
 export function createRuntime({ scene, world, playerBody }) {
   let goals = 0
   let timeRemaining = TIME_LIMIT
@@ -52,14 +90,10 @@ export function createRuntime({ scene, world, playerBody }) {
   world.addBody(ballBody)
 
   const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshStandardMaterial({ color: 0xffffff }))
+  ballMesh.name = 'ball'
   scene.add(ballMesh)
 
-  const goalMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 2, GOAL_ZONE.zMax - GOAL_ZONE.zMin),
-    new THREE.MeshStandardMaterial({ color: PALETTE.accentGreen, transparent: true, opacity: 0.4 }),
-  )
-  goalMesh.position.set(GOAL_ZONE.xMin, 1, (GOAL_ZONE.zMin + GOAL_ZONE.zMax) / 2)
-  scene.add(goalMesh)
+  scene.add(createGoalFrame())
 
   function resetBall() {
     ballBody.position.set(BALL_SPAWN.x, BALL_SPAWN.y, BALL_SPAWN.z)

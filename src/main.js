@@ -9,12 +9,14 @@ import { PlayerController } from './player-controller.js'
 import { SCREENS, createGameState, start, interstitialDone, levelWon, levelFailed, selectLevel } from './game-loop.js'
 import { LEVELS, getLevel, describeMechanics } from './levels/registry.js'
 import { PALETTE } from './theme.js'
+import { applyEnvironment, activateLevel } from './environment.js'
 import { updateBursts } from './effects/particles.js'
 import { triggerShake, tickShake } from './effects/screenshake.js'
 import { audio, noteFrequency } from './audio.js'
 
 const { scene, camera } = createScene(window.innerWidth / window.innerHeight)
 const baseCameraPosition = camera.position.clone()
+const cameraAnchor = baseCameraPosition.clone()
 
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setSize(window.innerWidth, window.innerHeight)
@@ -44,14 +46,32 @@ function resetPlayer() {
   playerBody.angularVelocity.set(0, 0, 0)
 }
 
-const runtimeCache = new Map()
+// Each level renders into its own group and registers its physics bodies, so
+// switching levels can hide the props and park the bodies of every other level.
+const levelSlots = new Map()
 let currentRuntime = null
 
 function enterLevel(levelIndex) {
-  if (!runtimeCache.has(levelIndex)) {
-    runtimeCache.set(levelIndex, getLevel(levelIndex).createRuntime({ scene, world, playerBody }))
+  currentRuntime?.deactivate?.()
+  if (!levelSlots.has(levelIndex)) {
+    const group = new THREE.Group()
+    scene.add(group)
+    const bodies = []
+    const levelWorld = {
+      addBody(body) {
+        bodies.push(body)
+        world.addBody(body)
+      },
+    }
+    levelSlots.set(levelIndex, {
+      runtime: getLevel(levelIndex).createRuntime({ scene: group, world: levelWorld, playerBody }),
+      group,
+      bodies,
+    })
   }
-  currentRuntime = runtimeCache.get(levelIndex)
+  activateLevel(levelSlots, levelIndex, world)
+  applyEnvironment(scene, levelIndex)
+  currentRuntime = levelSlots.get(levelIndex).runtime
   currentRuntime.reset()
   resetPlayer()
 }
@@ -196,6 +216,7 @@ document.getElementById('restart-btn-victory').addEventListener('click', () => {
 })
 
 renderScreens()
+applyEnvironment(scene, 0) // menu backdrop: show the meadow, not a void
 
 const FIXED_STEP = 1 / 60
 let lastTime = performance.now()
@@ -226,12 +247,15 @@ renderer.setAnimationLoop(() => {
     else if (outcome === 'fail') applyTransition(levelFailed)
   }
 
-  updateBursts(scene, dt)
+  updateBursts(dt)
   const shake = tickShake(dt)
-  camera.position.lerp(
-    new THREE.Vector3(baseCameraPosition.x + shake.x, baseCameraPosition.y + shake.y, baseCameraPosition.z + shake.z),
-    0.3,
+  // Arcade camera: glide after the player, shake applied on top.
+  cameraAnchor.lerp(
+    new THREE.Vector3(playerBody.position.x, baseCameraPosition.y, playerBody.position.z + baseCameraPosition.z),
+    0.1,
   )
+  camera.position.set(cameraAnchor.x + shake.x, cameraAnchor.y + shake.y, cameraAnchor.z + shake.z)
+  camera.lookAt(cameraAnchor.x, 1, cameraAnchor.z - baseCameraPosition.z)
 
   const { x, y, z } = playerBody.position
   debugOverlay.textContent = `screen=${gameState.screen} level=${gameState.levelIndex} lives=${gameState.lives}\nP1 ${JSON.stringify(state.p1)}\nP2 ${JSON.stringify(state.p2)}\npos=(${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`

@@ -14,6 +14,7 @@ export const HOOP_RADIUS = 0.6
 export const BALL_SPAWN = { x: 5, y: 0.3, z: 0 }
 export const THROW_RADIUS = 1.5
 export const THROW_TIME = 1.1
+export const BALL_COLOR = PALETTE.accentOrange
 
 export function checkBasketballOutcome({ points, playerPosition }) {
   if (points >= POINTS_TO_WIN) return 'win'
@@ -60,7 +61,8 @@ export function createRuntime({ scene, world, playerBody }) {
   const ballBody = new CANNON.Body({ mass: 1, shape: new CANNON.Sphere(0.3) })
   world.addBody(ballBody)
 
-  const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshStandardMaterial({ color: PALETTE.accentGold }))
+  const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshStandardMaterial({ color: BALL_COLOR }))
+  ballMesh.name = 'ball'
   scene.add(ballMesh)
 
   const hoopMesh = new THREE.Mesh(
@@ -70,6 +72,19 @@ export function createRuntime({ scene, world, playerBody }) {
   hoopMesh.position.set(HOOP_POSITION.x, HOOP_POSITION.y, HOOP_POSITION.z)
   hoopMesh.rotation.x = Math.PI / 2
   scene.add(hoopMesh)
+
+  // Backboard and pole so the hoop reads as a basketball hoop, not a floating ring.
+  const stand = new THREE.Group()
+  stand.name = 'hoop-stand'
+  const poleHeight = HOOP_POSITION.y + 0.5
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, poleHeight), new THREE.MeshStandardMaterial({ color: PALETTE.neutralLight }))
+  pole.name = 'pole'
+  pole.position.set(HOOP_POSITION.x + 0.9, poleHeight / 2, HOOP_POSITION.z)
+  const backboard = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.1, 1.8), new THREE.MeshStandardMaterial({ color: 0xffffff }))
+  backboard.name = 'backboard'
+  backboard.position.set(HOOP_POSITION.x + 0.75, HOOP_POSITION.y + 0.4, HOOP_POSITION.z)
+  stand.add(pole, backboard)
+  scene.add(stand)
 
   function resetBall() {
     ballBody.position.set(BALL_SPAWN.x, BALL_SPAWN.y, BALL_SPAWN.z)
