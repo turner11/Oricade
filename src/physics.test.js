@@ -5,11 +5,13 @@ import {
   GRAVITY,
   MOVE_SPEED,
   JUMP_SPEED,
+  GROUND_SIZE,
   computeVelocity,
   jumpVelocity,
   createWorld,
   createGroundBody,
   createPlayerBody,
+  createArenaWallBodies,
 } from './physics.js'
 
 describe('character config', () => {
@@ -74,6 +76,37 @@ describe('createGroundBody', () => {
     const ground = createGroundBody()
     expect(ground).toBeInstanceOf(CANNON.Body)
     expect(ground.mass).toBe(0)
+  })
+})
+
+describe('createArenaWallBodies', () => {
+  it('builds four static walls at the ground edges', () => {
+    const walls = createArenaWallBodies()
+    expect(walls).toHaveLength(4)
+    const half = GROUND_SIZE / 2
+    for (const wall of walls) {
+      expect(wall.mass).toBe(0)
+      expect(Math.max(Math.abs(wall.position.x), Math.abs(wall.position.z))).toBeCloseTo(half)
+    }
+  })
+
+  it('keeps a fast-moving ball inside the arena (issue #32: objects must not fall off)', () => {
+    const world = createWorld()
+    world.addBody(createGroundBody())
+    for (const wall of createArenaWallBodies()) world.addBody(wall)
+
+    const ball = new CANNON.Body({ mass: 1, shape: new CANNON.Sphere(0.3) })
+    ball.position.set(0, 0.3, 0)
+    ball.velocity.set(60, 0, 25)
+    world.addBody(ball)
+
+    const half = GROUND_SIZE / 2
+    for (let i = 0; i < 600; i++) {
+      world.step(1 / 60)
+      expect(Math.abs(ball.position.x)).toBeLessThanOrEqual(half)
+      expect(Math.abs(ball.position.z)).toBeLessThanOrEqual(half)
+      expect(ball.position.y).toBeGreaterThan(-1)
+    }
   })
 })
 
