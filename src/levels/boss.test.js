@@ -6,6 +6,8 @@ import {
   STRIKE_RADIUS,
   AIRBORNE_THRESHOLD,
   checkBossOutcome,
+  hudStatus,
+  PHASE_MAX_HEALTH,
   canDamagePhase,
   shouldStrike,
 } from './boss.js'
@@ -78,5 +80,11 @@ describe('shouldStrike', () => {
 
   it('is false out of range', () => {
     expect(shouldStrike(farPlayer, BOSS_POSITION, phase, { shoot: true, magic: false }, 0)).toBe(false)
+  })
+})
+
+describe('hudStatus', () => {
+  it('shows the current phase and boss health for the arcade HUD', () => {
+    expect(hudStatus({ phaseIndex: 0, phaseHealth: 40 })).toBe(`👑 PHASE 1/${PHASE_COUNT} · BOSS 40/${PHASE_MAX_HEALTH}`)
   })
 })

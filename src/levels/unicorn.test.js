@@ -5,6 +5,7 @@ import {
   DASH_COOLDOWN,
   DASH_SPEED_MULTIPLIER,
   checkUnicornOutcome,
+  hudStatus,
   isNearGem,
   shouldDash,
 } from './unicorn.js'
@@ -60,5 +61,11 @@ describe('config', () => {
 
   it('dash is a genuine speed boost, not a no-op', () => {
     expect(DASH_SPEED_MULTIPLIER).toBeGreaterThan(1)
+  })
+})
+
+describe('hudStatus', () => {
+  it('shows collected gems for the arcade HUD', () => {
+    expect(hudStatus({ gemsCollected: 2 })).toBe(`💎 2/${GEM_POSITIONS.length} GEMS`)
   })
 })

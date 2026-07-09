@@ -6,6 +6,7 @@ import {
   HOOP_RADIUS,
   THROW_RADIUS,
   checkBasketballOutcome,
+  hudStatus,
   isBasket,
   shouldThrow,
   computeArcVelocity,
@@ -74,5 +75,11 @@ describe('computeArcVelocity', () => {
     expect(landing.x).toBeCloseTo(to.x)
     expect(landing.y).toBeCloseTo(to.y)
     expect(landing.z).toBeCloseTo(to.z)
+  })
+})
+
+describe('hudStatus', () => {
+  it('shows live points progress for the arcade HUD', () => {
+    expect(hudStatus({ points: 4 })).toBe(`🏀 4/${POINTS_TO_WIN} POINTS`)
   })
 })

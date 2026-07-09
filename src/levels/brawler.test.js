@@ -6,6 +6,7 @@ import {
   ATTACK_RADIUS,
   ATTACK_COOLDOWN,
   checkBrawlerOutcome,
+  hudStatus,
   shouldAttack,
 } from './brawler.js'
 
@@ -49,5 +50,11 @@ describe('shouldAttack', () => {
 describe('config', () => {
   it('takes a whole number of hits to deplete the opponent', () => {
     expect(OPPONENT_MAX_HEALTH % DAMAGE_PER_HIT).toBe(0)
+  })
+})
+
+describe('hudStatus', () => {
+  it('shows the opponent health for the arcade HUD', () => {
+    expect(hudStatus({ opponentHealth: 75 })).toBe(`🥊 ENEMY ${75}/${OPPONENT_MAX_HEALTH} HP`)
   })
 })
