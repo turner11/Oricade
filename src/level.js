@@ -1,8 +1,12 @@
 export const WIN_RADIUS = 1.5
 export const FAIL_Y = -5
 
+export function hasFallenOff(playerPosition) {
+  return playerPosition.y < FAIL_Y
+}
+
 export function checkLevelOutcome(playerPosition, markerPosition) {
-  if (playerPosition.y < FAIL_Y) return 'fail'
+  if (hasFallenOff(playerPosition)) return 'fail'
 
   const dx = playerPosition.x - markerPosition.x
   const dz = playerPosition.z - markerPosition.z
