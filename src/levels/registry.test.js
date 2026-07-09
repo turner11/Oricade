@@ -54,6 +54,13 @@ describe('LEVELS', () => {
     expect(spaceFleet.objective).toBe('Destroy 3 enemy waves')
     expect(spaceFleet.mechanics).toEqual(['move', 'shoot'])
   })
+
+  it('includes the Trap Dungeon level per the Level Matrix', () => {
+    const trapDungeon = LEVELS.find((l) => l.theme === 'Trap Dungeon')
+    expect(trapDungeon).toBeDefined()
+    expect(trapDungeon.objective).toBe('Navigate parkour to the artifact')
+    expect(trapDungeon.mechanics).toEqual(['move', 'jump', 'crouch', 'magic'])
+  })
 })
 
 describe('getLevel', () => {
