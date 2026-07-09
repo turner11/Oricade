@@ -5,6 +5,7 @@ import { createRuntime as createPlatformerRuntime } from './platformer.js'
 import { createRuntime as createBrawlerRuntime } from './brawler.js'
 import { createRuntime as createUnicornRuntime } from './unicorn.js'
 import { createRuntime as createSpaceFleetRuntime } from './spacefleet.js'
+import { createRuntime as createTrapDungeonRuntime } from './trapdungeon.js'
 
 const MECHANIC_LABELS = {
   move: 'Move',
@@ -70,6 +71,14 @@ export const LEVELS = [
     objective: 'Destroy 3 enemy waves',
     mechanics: ['move', 'shoot'],
     createRuntime: createSpaceFleetRuntime,
+  },
+  {
+    id: 8,
+    theme: 'Trap Dungeon',
+    perspective: 'First-person (Free-look)',
+    objective: 'Navigate parkour to the artifact',
+    mechanics: ['move', 'jump', 'crouch', 'magic'],
+    createRuntime: createTrapDungeonRuntime,
   },
 ]
 
