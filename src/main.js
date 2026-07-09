@@ -126,12 +126,13 @@ renderer.setAnimationLoop(() => {
   const state = input.getState()
 
   if (gameState.screen === SCREENS.LEVEL) {
-    controller.update(state.p1)
+    currentRuntime.update(state.p1, dt)
+    const speedMultiplier = currentRuntime.getSpeedMultiplier ? currentRuntime.getSpeedMultiplier() : 1
+    controller.update(state.p1, speedMultiplier)
     world.step(FIXED_STEP, dt)
     playerMesh.position.copy(playerBody.position)
     playerMesh.quaternion.copy(playerBody.quaternion)
 
-    currentRuntime.update(state.p1, dt)
     const outcome = currentRuntime.checkOutcome()
     if (outcome === 'win') applyTransition(levelWon, LEVELS.length)
     else if (outcome === 'fail') applyTransition(levelFailed)

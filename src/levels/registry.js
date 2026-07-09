@@ -3,6 +3,7 @@ import { createRuntime as createSoccerRuntime } from './soccer.js'
 import { createRuntime as createBasketballRuntime } from './basketball.js'
 import { createRuntime as createPlatformerRuntime } from './platformer.js'
 import { createRuntime as createBrawlerRuntime } from './brawler.js'
+import { createRuntime as createUnicornRuntime } from './unicorn.js'
 
 const MECHANIC_LABELS = {
   move: 'Move',
@@ -52,6 +53,14 @@ export const LEVELS = [
     objective: 'Deplete opponent health bar',
     mechanics: ['move', 'jump', 'crouch', 'shoot'],
     createRuntime: createBrawlerRuntime,
+  },
+  {
+    id: 6,
+    theme: 'Unicorn Forest',
+    perspective: 'Third-person (Behind-the-back)',
+    objective: 'Collect 5 magic gems',
+    mechanics: ['move', 'jump', 'magic'],
+    createRuntime: createUnicornRuntime,
   },
 ]
 
