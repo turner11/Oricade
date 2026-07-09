@@ -10,3 +10,14 @@ export function computeShakeOffset(elapsed, duration = SHAKE_DURATION, intensity
     z: 0,
   }
 }
+
+let shakeElapsed = SHAKE_DURATION
+
+export function triggerShake() {
+  shakeElapsed = 0
+}
+
+export function tickShake(dt) {
+  shakeElapsed = Math.min(shakeElapsed + dt, SHAKE_DURATION)
+  return computeShakeOffset(shakeElapsed)
+}

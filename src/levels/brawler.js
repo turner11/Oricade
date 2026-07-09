@@ -1,5 +1,9 @@
 import * as THREE from 'three'
 import { hasFallenOff } from '../level.js'
+import { PALETTE } from '../theme.js'
+import { spawnBurst } from '../effects/particles.js'
+import { triggerShake } from '../effects/screenshake.js'
+import { audio } from '../audio.js'
 
 export const OPPONENT_POSITION = { x: 8, y: 0.9, z: 0 }
 export const OPPONENT_MAX_HEALTH = 100
@@ -27,12 +31,12 @@ export function createRuntime({ scene, playerBody }) {
   let opponentHealth = OPPONENT_MAX_HEALTH
   let cooldownRemaining = 0
 
-  const opponentMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.8, 0.6), new THREE.MeshStandardMaterial({ color: 0xcc2244 }))
+  const opponentMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.8, 0.6), new THREE.MeshStandardMaterial({ color: PALETTE.accentRed }))
   opponentMesh.position.set(OPPONENT_POSITION.x, OPPONENT_POSITION.y, OPPONENT_POSITION.z)
   scene.add(opponentMesh)
 
   const healthBarBack = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.15), new THREE.MeshBasicMaterial({ color: 0x333333 }))
-  const healthBarFront = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.15), new THREE.MeshBasicMaterial({ color: 0x22cc44 }))
+  const healthBarFront = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.15), new THREE.MeshBasicMaterial({ color: PALETTE.accentGreen }))
   healthBarBack.position.set(OPPONENT_POSITION.x, OPPONENT_POSITION.y + 1.4, OPPONENT_POSITION.z)
   healthBarFront.position.set(OPPONENT_POSITION.x, OPPONENT_POSITION.y + 1.4, OPPONENT_POSITION.z + 0.01)
   scene.add(healthBarBack, healthBarFront)
@@ -51,6 +55,9 @@ export function createRuntime({ scene, playerBody }) {
         opponentHealth = Math.max(0, opponentHealth - DAMAGE_PER_HIT)
         cooldownRemaining = ATTACK_COOLDOWN
         updateHealthBar()
+        spawnBurst(scene, OPPONENT_POSITION, PALETTE.accentRed)
+        audio.playSfx(220, 0.12, 'sawtooth')
+        triggerShake()
       }
     },
     checkOutcome() {

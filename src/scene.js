@@ -1,8 +1,9 @@
 import * as THREE from 'three'
+import { PALETTE } from './theme.js'
 
 export function createScene(aspect = 16 / 9) {
   const scene = new THREE.Scene()
-  scene.background = new THREE.Color(0x111111)
+  scene.background = new THREE.Color(0x11111a)
 
   const camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000)
   camera.position.set(0, 5, 10)
@@ -10,7 +11,7 @@ export function createScene(aspect = 16 / 9) {
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(50, 50),
-    new THREE.MeshStandardMaterial({ color: 0x2a2a2a }),
+    new THREE.MeshStandardMaterial({ color: PALETTE.ground }),
   )
   ground.name = 'ground'
   ground.rotation.x = -Math.PI / 2

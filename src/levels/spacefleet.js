@@ -1,5 +1,9 @@
 import * as THREE from 'three'
 import { hasFallenOff } from '../level.js'
+import { PALETTE } from '../theme.js'
+import { spawnBurst } from '../effects/particles.js'
+import { triggerShake } from '../effects/screenshake.js'
+import { audio } from '../audio.js'
 
 export const WAVE_COUNT = 3
 export const ENEMIES_PER_WAVE = 3
@@ -32,7 +36,7 @@ export function shouldFire(shootPressed, cooldownRemaining) {
 function makeWaveEnemies(scene) {
   return ENEMY_OFFSETS.map((zOffset) => {
     const position = { x: ENEMY_ANCHOR.x, y: ENEMY_ANCHOR.y, z: ENEMY_ANCHOR.z + zOffset }
-    const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1, 6), new THREE.MeshStandardMaterial({ color: 0x22ddee }))
+    const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1, 6), new THREE.MeshStandardMaterial({ color: PALETTE.accentCyan }))
     mesh.position.set(position.x, position.y, position.z)
     mesh.rotation.z = Math.PI / 2
     scene.add(mesh)
@@ -60,6 +64,9 @@ export function createRuntime({ scene, playerBody }) {
           target.alive = false
           target.mesh.visible = false
           fireCooldownRemaining = FIRE_COOLDOWN
+          spawnBurst(scene, target.position, PALETTE.accentCyan)
+          audio.playSfx(392, 0.12, 'sawtooth')
+          triggerShake()
         }
       }
 
