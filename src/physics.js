@@ -20,12 +20,18 @@ export function jumpVelocity(grounded, jumpPressed) {
 
 export function createWorld() {
   const world = new CANNON.World({ gravity: new CANNON.Vec3(0, GRAVITY, 0) })
+  // Movement is driven by directly setting velocity (see PlayerController), not forces —
+  // default contact friction fights that and kills horizontal movement almost entirely.
+  world.defaultContactMaterial.friction = 0
   return world
 }
 
+export const GROUND_SIZE = 50
+
 export function createGroundBody() {
-  const ground = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() })
-  ground.quaternion.setFromEuler(-Math.PI / 2, 0, 0)
+  const half = GROUND_SIZE / 2
+  const ground = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(half, 0.5, half)) })
+  ground.position.set(0, -0.5, 0)
   return ground
 }
 
