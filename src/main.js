@@ -1,7 +1,9 @@
 import * as THREE from 'three'
 import { createScene } from './scene.js'
 import { InputController, describeKeyMap } from './input.js'
-import { CHARACTER, createWorld, createGroundBody, createPlayerBody } from './physics.js'
+import { CHARACTER, createWorld, createGroundBody, createPlayerBody, createArenaWallBodies } from './physics.js'
+import { createCharacterMesh } from './character.js'
+import { GAME_TITLE, GAME_TAGLINE, HERO, getStoryLine } from './story.js'
 import { PlayerController } from './player-controller.js'
 import { SCREENS, createGameState, start, interstitialDone, levelWon, levelFailed, selectLevel } from './game-loop.js'
 import { LEVELS, getLevel, describeMechanics } from './levels/registry.js'
@@ -27,14 +29,12 @@ const input = new InputController()
 
 const world = createWorld()
 world.addBody(createGroundBody())
+for (const wall of createArenaWallBodies()) world.addBody(wall)
 const playerBody = createPlayerBody()
 world.addBody(playerBody)
 const controller = new PlayerController(playerBody)
 
-const playerMesh = new THREE.Mesh(
-  new THREE.BoxGeometry(CHARACTER.width, CHARACTER.height, CHARACTER.width),
-  new THREE.MeshStandardMaterial({ color: PALETTE.player }),
-)
+const playerMesh = createCharacterMesh()
 scene.add(playerMesh)
 
 function resetPlayer() {
@@ -66,7 +66,10 @@ function createScreen(id, html) {
   return el
 }
 
-const menuScreen = createScreen('screen-menu', '<h1>Oricade</h1><button id="start-btn">Start</button>')
+const menuScreen = createScreen(
+  'screen-menu',
+  `<h1>${GAME_TITLE}</h1><p>${GAME_TAGLINE}</p><p>Meet ${HERO.name}, ${HERO.description}.</p><button id="start-btn">Start</button>`,
+)
 const interstitialScreen = createScreen('screen-interstitial', '')
 const gameOverScreen = createScreen('screen-gameover', '<h1>Game Over</h1><button id="restart-btn">Restart</button>')
 const victoryScreen = createScreen('screen-victory', '<h1>Victory!</h1><button id="restart-btn-victory">Play Again</button>')
@@ -148,7 +151,7 @@ function renderScreens() {
 
   if (gameState.screen === SCREENS.INTERSTITIAL) {
     const level = getLevel(gameState.levelIndex)
-    interstitialScreen.innerHTML = `<h2>Level ${level.id} — ${level.theme}</h2><p>Perspective: ${level.perspective}</p><p>Objective: ${level.objective}</p><p>Controls: ${describeMechanics(level.mechanics)}</p>`
+    interstitialScreen.innerHTML = `<h2>Level ${level.id} — ${level.theme}</h2><p><em>${getStoryLine(gameState.levelIndex)}</em></p><p>Objective: ${level.objective}</p><p>Controls: ${describeMechanics(level.mechanics)}</p>`
   }
 }
 

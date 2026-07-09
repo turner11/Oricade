@@ -35,6 +35,22 @@ export function createGroundBody() {
   return ground
 }
 
+// Issue #32: objects (ball, players) must never fall off the arena edge.
+export function createArenaWallBodies() {
+  const half = GROUND_SIZE / 2
+  const wallHeight = 5
+  return [
+    { position: [half, 0, 0], halfExtents: [0.5, wallHeight, half] },
+    { position: [-half, 0, 0], halfExtents: [0.5, wallHeight, half] },
+    { position: [0, 0, half], halfExtents: [half, wallHeight, 0.5] },
+    { position: [0, 0, -half], halfExtents: [half, wallHeight, 0.5] },
+  ].map(({ position, halfExtents }) => {
+    const wall = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(...halfExtents)) })
+    wall.position.set(...position)
+    return wall
+  })
+}
+
 export function createPlayerBody() {
   const half = new CANNON.Vec3(CHARACTER.width / 2, CHARACTER.height / 2, CHARACTER.width / 2)
   const player = new CANNON.Body({
