@@ -4,7 +4,10 @@ import { InputController } from './input.js'
 import { CHARACTER, createWorld, createGroundBody, createPlayerBody } from './physics.js'
 import { PlayerController } from './player-controller.js'
 import { SCREENS, createGameState, start, interstitialDone, levelWon, levelFailed } from './game-loop.js'
-import { MARKER_POSITION, checkLevelOutcome } from './level.js'
+import { checkLevelOutcome } from './level.js'
+import { getLevel, describeMechanics } from './levels/registry.js'
+
+const level = getLevel(0)
 
 const { scene, camera } = createScene(window.innerWidth / window.innerHeight)
 
@@ -33,7 +36,7 @@ const playerMesh = new THREE.Mesh(
 scene.add(playerMesh)
 
 const markerMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshStandardMaterial({ color: 0xffcc00 }))
-markerMesh.position.set(MARKER_POSITION.x, MARKER_POSITION.y, MARKER_POSITION.z)
+markerMesh.position.set(level.markerPosition.x, level.markerPosition.y, level.markerPosition.z)
 scene.add(markerMesh)
 
 function resetPlayer() {
@@ -56,7 +59,7 @@ function createScreen(id, html) {
 const menuScreen = createScreen('screen-menu', '<h1>Oricade</h1><button id="start-btn">Start</button>')
 const interstitialScreen = createScreen(
   'screen-interstitial',
-  '<h2>Level 1 — Placeholder Arena</h2><p>Theme: Foundation Test</p><p>Objective: reach the golden marker</p><p>Controls: Move / Jump / Crouch</p>',
+  `<h2>Level ${level.id} — ${level.theme}</h2><p>Perspective: ${level.perspective}</p><p>Objective: ${level.objective}</p><p>Controls: ${describeMechanics(level.mechanics)}</p>`,
 )
 const gameOverScreen = createScreen('screen-gameover', '<h1>Game Over</h1><button id="restart-btn">Restart</button>')
 const victoryScreen = createScreen('screen-victory', '<h1>Victory!</h1><button id="restart-btn-victory">Play Again</button>')
@@ -121,7 +124,7 @@ renderer.setAnimationLoop(() => {
     playerMesh.position.copy(playerBody.position)
     playerMesh.quaternion.copy(playerBody.quaternion)
 
-    const outcome = checkLevelOutcome(playerBody.position, MARKER_POSITION)
+    const outcome = checkLevelOutcome(playerBody.position, level.markerPosition)
     if (outcome === 'win') applyTransition(levelWon)
     else if (outcome === 'fail') applyTransition(levelFailed)
   }

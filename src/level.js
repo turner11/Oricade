@@ -1,4 +1,3 @@
-export const MARKER_POSITION = { x: 10, y: 0.5, z: 0 }
 export const WIN_RADIUS = 1.5
 export const FAIL_Y = -5
 
