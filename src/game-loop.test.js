@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SCREENS, STARTING_LIVES, createGameState, start, interstitialDone, levelWon, levelFailed } from './game-loop.js'
+import { SCREENS, STARTING_LIVES, createGameState, start, interstitialDone, levelWon, levelFailed, selectLevel } from './game-loop.js'
 
 describe('createGameState', () => {
   it('starts on the menu with the full life pool and the first level', () => {
@@ -31,6 +31,21 @@ describe('levelWon', () => {
   it('moves to the victory screen after winning the last level', () => {
     const state = levelWon({ screen: SCREENS.LEVEL, lives: 3, levelIndex: 1 }, 2)
     expect(state).toEqual({ screen: SCREENS.VICTORY, lives: 3, levelIndex: 1 })
+  })
+})
+
+describe('selectLevel', () => {
+  it('jumps straight to the chosen level via the interstitial, preserving lives', () => {
+    const state = selectLevel({ screen: SCREENS.LEVEL, lives: 2, levelIndex: 0 }, 5)
+    expect(state).toEqual({ screen: SCREENS.INTERSTITIAL, lives: 2, levelIndex: 5 })
+  })
+
+  it('works from any screen (menu, game over, victory)', () => {
+    expect(selectLevel({ screen: SCREENS.GAME_OVER, lives: 0, levelIndex: 3 }, 1)).toEqual({
+      screen: SCREENS.INTERSTITIAL,
+      lives: 0,
+      levelIndex: 1,
+    })
   })
 })
 
