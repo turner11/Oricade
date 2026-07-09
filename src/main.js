@@ -4,10 +4,7 @@ import { InputController } from './input.js'
 import { CHARACTER, createWorld, createGroundBody, createPlayerBody } from './physics.js'
 import { PlayerController } from './player-controller.js'
 import { SCREENS, createGameState, start, interstitialDone, levelWon, levelFailed } from './game-loop.js'
-import { checkLevelOutcome } from './level.js'
-import { getLevel, describeMechanics } from './levels/registry.js'
-
-const level = getLevel(0)
+import { LEVELS, getLevel, describeMechanics } from './levels/registry.js'
 
 const { scene, camera } = createScene(window.innerWidth / window.innerHeight)
 
@@ -35,14 +32,22 @@ const playerMesh = new THREE.Mesh(
 )
 scene.add(playerMesh)
 
-const markerMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshStandardMaterial({ color: 0xffcc00 }))
-markerMesh.position.set(level.markerPosition.x, level.markerPosition.y, level.markerPosition.z)
-scene.add(markerMesh)
-
 function resetPlayer() {
   playerBody.position.set(0, CHARACTER.height, 0)
   playerBody.velocity.set(0, 0, 0)
   playerBody.angularVelocity.set(0, 0, 0)
+}
+
+const runtimeCache = new Map()
+let currentRuntime = null
+
+function enterLevel(levelIndex) {
+  if (!runtimeCache.has(levelIndex)) {
+    runtimeCache.set(levelIndex, getLevel(levelIndex).createRuntime({ scene, world, playerBody }))
+  }
+  currentRuntime = runtimeCache.get(levelIndex)
+  currentRuntime.reset()
+  resetPlayer()
 }
 
 function createScreen(id, html) {
@@ -57,10 +62,7 @@ function createScreen(id, html) {
 }
 
 const menuScreen = createScreen('screen-menu', '<h1>Oricade</h1><button id="start-btn">Start</button>')
-const interstitialScreen = createScreen(
-  'screen-interstitial',
-  `<h2>Level ${level.id} — ${level.theme}</h2><p>Perspective: ${level.perspective}</p><p>Objective: ${level.objective}</p><p>Controls: ${describeMechanics(level.mechanics)}</p>`,
-)
+const interstitialScreen = createScreen('screen-interstitial', '')
 const gameOverScreen = createScreen('screen-gameover', '<h1>Game Over</h1><button id="restart-btn">Restart</button>')
 const victoryScreen = createScreen('screen-victory', '<h1>Victory!</h1><button id="restart-btn-victory">Play Again</button>')
 
@@ -83,14 +85,19 @@ function renderScreens() {
   gameOverScreen.style.display = gameState.screen === SCREENS.GAME_OVER ? 'flex' : 'none'
   victoryScreen.style.display = gameState.screen === SCREENS.VICTORY ? 'flex' : 'none'
   livesHud.textContent = `Lives: ${gameState.lives}`
+
+  if (gameState.screen === SCREENS.INTERSTITIAL) {
+    const level = getLevel(gameState.levelIndex)
+    interstitialScreen.innerHTML = `<h2>Level ${level.id} — ${level.theme}</h2><p>Perspective: ${level.perspective}</p><p>Objective: ${level.objective}</p><p>Controls: ${describeMechanics(level.mechanics)}</p>`
+  }
 }
 
-function applyTransition(transitionFn) {
-  gameState = transitionFn(gameState)
+function applyTransition(transitionFn, ...args) {
+  gameState = transitionFn(gameState, ...args)
   renderScreens()
   if (gameState.screen === SCREENS.INTERSTITIAL) {
     setTimeout(() => {
-      resetPlayer()
+      enterLevel(gameState.levelIndex)
       applyTransition(interstitialDone)
     }, 3000)
   }
@@ -124,12 +131,13 @@ renderer.setAnimationLoop(() => {
     playerMesh.position.copy(playerBody.position)
     playerMesh.quaternion.copy(playerBody.quaternion)
 
-    const outcome = checkLevelOutcome(playerBody.position, level.markerPosition)
-    if (outcome === 'win') applyTransition(levelWon)
+    currentRuntime.update(state.p1, dt)
+    const outcome = currentRuntime.checkOutcome()
+    if (outcome === 'win') applyTransition(levelWon, LEVELS.length)
     else if (outcome === 'fail') applyTransition(levelFailed)
   }
 
   const { x, y, z } = playerBody.position
-  debugOverlay.textContent = `screen=${gameState.screen} lives=${gameState.lives}\nP1 ${JSON.stringify(state.p1)}\nP2 ${JSON.stringify(state.p2)}\npos=(${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`
+  debugOverlay.textContent = `screen=${gameState.screen} level=${gameState.levelIndex} lives=${gameState.lives}\nP1 ${JSON.stringify(state.p1)}\nP2 ${JSON.stringify(state.p2)}\npos=(${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`
   renderer.render(scene, camera)
 })
