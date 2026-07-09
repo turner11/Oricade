@@ -21,6 +21,10 @@ export function checkBasketballOutcome({ points, playerPosition }) {
   return null
 }
 
+export function hudStatus({ points }) {
+  return `🏀 ${points}/${POINTS_TO_WIN} POINTS`
+}
+
 function distance3D(a, b) {
   const dx = a.x - b.x
   const dy = a.y - b.y
@@ -91,6 +95,9 @@ export function createRuntime({ scene, world, playerBody }) {
         triggerShake()
         resetBall()
       }
+    },
+    getHudStatus() {
+      return hudStatus({ points })
     },
     checkOutcome() {
       return checkBasketballOutcome({ points, playerPosition: playerBody.position })

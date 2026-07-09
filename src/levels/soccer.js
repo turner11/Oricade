@@ -4,6 +4,7 @@ import { PALETTE } from '../theme.js'
 import { spawnBurst } from '../effects/particles.js'
 import { triggerShake } from '../effects/screenshake.js'
 import { audio } from '../audio.js'
+import { formatTime } from '../hud.js'
 
 export const TIME_LIMIT = 60
 export const GOALS_TO_WIN = 3
@@ -16,6 +17,10 @@ export function checkSoccerOutcome({ goals, timeRemaining }) {
   if (goals >= GOALS_TO_WIN) return 'win'
   if (timeRemaining <= 0) return 'fail'
   return null
+}
+
+export function hudStatus({ goals, timeRemaining }) {
+  return `⚽ ${goals}/${GOALS_TO_WIN} GOALS · ${formatTime(timeRemaining)}`
 }
 
 export function isGoal(ballPosition, goalZone) {
@@ -81,6 +86,9 @@ export function createRuntime({ scene, world, playerBody }) {
         triggerShake()
         resetBall()
       }
+    },
+    getHudStatus() {
+      return hudStatus({ goals, timeRemaining })
     },
     checkOutcome() {
       return checkSoccerOutcome({ goals, timeRemaining })

@@ -25,6 +25,10 @@ export function checkBossOutcome({ phaseIndex, playerPosition }) {
   return null
 }
 
+export function hudStatus({ phaseIndex, phaseHealth }) {
+  return `👑 PHASE ${Math.min(phaseIndex + 1, PHASE_COUNT)}/${PHASE_COUNT} · BOSS ${phaseHealth}/${PHASE_MAX_HEALTH}`
+}
+
 function distanceXZ(a, b) {
   const dx = a.x - b.x
   const dz = a.z - b.z
@@ -107,6 +111,9 @@ export function createRuntime({ scene, playerBody }) {
           }
         }
       }
+    },
+    getHudStatus() {
+      return hudStatus({ phaseIndex, phaseHealth })
     },
     checkOutcome() {
       return checkBossOutcome({ phaseIndex, playerPosition: playerBody.position })

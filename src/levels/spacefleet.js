@@ -18,6 +18,10 @@ export function checkSpaceFleetOutcome({ wavesDestroyed, playerPosition }) {
   return null
 }
 
+export function hudStatus({ wavesDestroyed }) {
+  return `🚀 WAVE ${Math.min(wavesDestroyed + 1, WAVE_COUNT)}/${WAVE_COUNT}`
+}
+
 function distance3D(a, b) {
   const dx = a.x - b.x
   const dy = a.y - b.y
@@ -74,6 +78,9 @@ export function createRuntime({ scene, playerBody }) {
         wavesDestroyed += 1
         if (wavesDestroyed < WAVE_COUNT) spawnNextWave()
       }
+    },
+    getHudStatus() {
+      return hudStatus({ wavesDestroyed })
     },
     checkOutcome() {
       return checkSpaceFleetOutcome({ wavesDestroyed, playerPosition: playerBody.position })
