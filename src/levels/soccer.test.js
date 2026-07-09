@@ -5,6 +5,7 @@ import {
   KICK_RADIUS,
   KICK_IMPULSE,
   checkSoccerOutcome,
+  hudStatus,
   isGoal,
   shouldKick,
   computeKickImpulse,
@@ -68,5 +69,11 @@ describe('computeKickImpulse', () => {
     const impulse = computeKickImpulse(player, ball, KICK_IMPULSE)
     expect(impulse.x).toBeCloseTo(KICK_IMPULSE)
     expect(impulse.z).toBeCloseTo(0)
+  })
+})
+
+describe('hudStatus', () => {
+  it('shows live goal count and remaining time for the arcade HUD', () => {
+    expect(hudStatus({ goals: 1, timeRemaining: 42 })).toBe(`⚽ 1/${GOALS_TO_WIN} GOALS · 0:42`)
   })
 })

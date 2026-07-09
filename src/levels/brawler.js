@@ -18,6 +18,10 @@ export function checkBrawlerOutcome({ opponentHealth, playerPosition }) {
   return null
 }
 
+export function hudStatus({ opponentHealth }) {
+  return `🥊 ENEMY ${opponentHealth}/${OPPONENT_MAX_HEALTH} HP`
+}
+
 function distanceXZ(a, b) {
   const dx = a.x - b.x
   const dz = a.z - b.z
@@ -60,6 +64,9 @@ export function createRuntime({ scene, playerBody }) {
         audio.playSfx(220, 0.12, 'sawtooth')
         triggerShake()
       }
+    },
+    getHudStatus() {
+      return hudStatus({ opponentHealth })
     },
     checkOutcome() {
       return checkBrawlerOutcome({ opponentHealth, playerPosition: playerBody.position })

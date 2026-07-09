@@ -50,3 +50,22 @@ export function createCharacterMesh(color = PALETTE.player) {
 
   return group
 }
+
+const SWING_SPEED = 8
+const SWING_AMPLITUDE = 0.6
+const MOVING_THRESHOLD = 0.1
+
+// Simple arcade walk cycle: opposite-phase limb swing while moving, at rest otherwise.
+export function animateCharacter(character, speed, time) {
+  const swing = speed > MOVING_THRESHOLD ? Math.sin(time * SWING_SPEED) * SWING_AMPLITUDE : 0
+  character.getObjectByName('armL').rotation.x = swing
+  character.getObjectByName('armR').rotation.x = -swing || 0
+  character.getObjectByName('legL').rotation.x = -swing || 0
+  character.getObjectByName('legR').rotation.x = swing
+}
+
+// Turn toward the travel direction; the model's face is on its local -z side.
+export function faceMovement(character, vx, vz) {
+  if (Math.hypot(vx, vz) < MOVING_THRESHOLD) return
+  character.rotation.y = Math.atan2(-vx, -vz)
+}

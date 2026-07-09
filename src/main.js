@@ -2,7 +2,8 @@ import * as THREE from 'three'
 import { createScene } from './scene.js'
 import { InputController, describeKeyMap } from './input.js'
 import { CHARACTER, createWorld, createGroundBody, createPlayerBody, createArenaWallBodies } from './physics.js'
-import { createCharacterMesh } from './character.js'
+import { createCharacterMesh, animateCharacter, faceMovement } from './character.js'
+import { heartsFor } from './hud.js'
 import { GAME_TITLE, GAME_TAGLINE, HERO, getStoryLine } from './story.js'
 import { PlayerController } from './player-controller.js'
 import { SCREENS, createGameState, start, interstitialDone, levelWon, levelFailed, selectLevel } from './game-loop.js'
@@ -76,14 +77,25 @@ const victoryScreen = createScreen('screen-victory', '<h1>Victory!</h1><button i
 
 const livesHud = document.createElement('div')
 livesHud.id = 'lives-hud'
-livesHud.style.cssText = 'position:fixed;top:8px;right:8px;color:#fff;font:16px monospace;'
+livesHud.style.cssText = 'position:fixed;top:8px;right:8px;color:#ff5c8a;font:22px sans-serif;text-shadow:0 1px 3px #000;'
 document.body.appendChild(livesHud)
 
+const statusHud = document.createElement('div')
+statusHud.id = 'status-hud'
+statusHud.style.cssText =
+  'position:fixed;top:8px;left:50%;transform:translateX(-50%);display:none;padding:6px 18px;color:#fff;background:rgba(0,0,0,0.55);font:bold 18px sans-serif;border-radius:20px;letter-spacing:1px;text-shadow:0 1px 3px #000;'
+document.body.appendChild(statusHud)
+
+// Dev-only: hidden by default so the game doesn't look like a physics experiment. Backquote toggles.
 const debugOverlay = document.createElement('pre')
 debugOverlay.id = 'input-debug'
 debugOverlay.style.cssText =
-  'position:fixed;top:0;left:0;margin:0;padding:8px;color:#0f0;background:rgba(0,0,0,0.6);font:12px monospace;pointer-events:none;'
+  'position:fixed;top:0;left:0;margin:0;padding:8px;display:none;color:#0f0;background:rgba(0,0,0,0.6);font:12px monospace;pointer-events:none;'
 document.body.appendChild(debugOverlay)
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Backquote') debugOverlay.style.display = debugOverlay.style.display === 'none' ? 'block' : 'none'
+})
 
 const helperPanel = document.createElement('div')
 helperPanel.id = 'helper-panel'
@@ -147,7 +159,8 @@ function renderScreens() {
   interstitialScreen.style.display = gameState.screen === SCREENS.INTERSTITIAL ? 'flex' : 'none'
   gameOverScreen.style.display = gameState.screen === SCREENS.GAME_OVER ? 'flex' : 'none'
   victoryScreen.style.display = gameState.screen === SCREENS.VICTORY ? 'flex' : 'none'
-  livesHud.textContent = `Lives: ${gameState.lives}`
+  livesHud.textContent = heartsFor(gameState.lives)
+  statusHud.style.display = gameState.screen === SCREENS.LEVEL ? 'block' : 'none'
 
   if (gameState.screen === SCREENS.INTERSTITIAL) {
     const level = getLevel(gameState.levelIndex)
@@ -186,6 +199,7 @@ renderScreens()
 
 const FIXED_STEP = 1 / 60
 let lastTime = performance.now()
+let elapsed = 0
 
 renderer.setAnimationLoop(() => {
   const now = performance.now()
@@ -199,8 +213,13 @@ renderer.setAnimationLoop(() => {
     const speedMultiplier = currentRuntime.getSpeedMultiplier ? currentRuntime.getSpeedMultiplier() : 1
     controller.update(state.p1, speedMultiplier)
     world.step(FIXED_STEP, dt)
+    elapsed += dt
     playerMesh.position.copy(playerBody.position)
-    playerMesh.quaternion.copy(playerBody.quaternion)
+    const { x: vx, z: vz } = playerBody.velocity
+    faceMovement(playerMesh, vx, vz)
+    animateCharacter(playerMesh, Math.hypot(vx, vz), elapsed)
+
+    statusHud.textContent = currentRuntime.getHudStatus?.() ?? getLevel(gameState.levelIndex).objective.toUpperCase()
 
     const outcome = currentRuntime.checkOutcome()
     if (outcome === 'win') applyTransition(levelWon, LEVELS.length)

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { WAVE_COUNT, ENEMIES_PER_WAVE, SHOOT_RANGE, FIRE_COOLDOWN, checkSpaceFleetOutcome, isEnemyInRange, shouldFire } from './spacefleet.js'
+import { WAVE_COUNT, ENEMIES_PER_WAVE, SHOOT_RANGE, FIRE_COOLDOWN, checkSpaceFleetOutcome, isEnemyInRange, shouldFire, hudStatus } from './spacefleet.js'
 
 describe('checkSpaceFleetOutcome', () => {
   it('returns "win" once all waves are destroyed', () => {
@@ -50,5 +50,15 @@ describe('config', () => {
 
   it('has at least one enemy per wave', () => {
     expect(ENEMIES_PER_WAVE).toBeGreaterThan(0)
+  })
+})
+
+describe('hudStatus', () => {
+  it('shows the wave currently being fought for the arcade HUD', () => {
+    expect(hudStatus({ wavesDestroyed: 1 })).toBe(`🚀 WAVE 2/${WAVE_COUNT}`)
+  })
+
+  it('never shows a wave beyond the last one', () => {
+    expect(hudStatus({ wavesDestroyed: WAVE_COUNT })).toBe(`🚀 WAVE ${WAVE_COUNT}/${WAVE_COUNT}`)
   })
 })

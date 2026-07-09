@@ -22,6 +22,10 @@ export function checkUnicornOutcome({ gemsCollected, totalGems, playerPosition }
   return null
 }
 
+export function hudStatus({ gemsCollected }) {
+  return `💎 ${gemsCollected}/${GEM_POSITIONS.length} GEMS`
+}
+
 function distance3D(a, b) {
   const dx = a.x - b.x
   const dy = a.y - b.y
@@ -70,6 +74,9 @@ export function createRuntime({ scene, playerBody }) {
           audio.playSfx(784, 0.15)
         }
       }
+    },
+    getHudStatus() {
+      return hudStatus({ gemsCollected })
     },
     getSpeedMultiplier() {
       return dashTimeRemaining > 0 ? DASH_SPEED_MULTIPLIER : 1
