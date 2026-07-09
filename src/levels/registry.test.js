@@ -47,6 +47,13 @@ describe('LEVELS', () => {
     expect(unicorn.objective).toBe('Collect 5 magic gems')
     expect(unicorn.mechanics).toEqual(['move', 'jump', 'magic'])
   })
+
+  it('includes the Space Fleet level per the Level Matrix', () => {
+    const spaceFleet = LEVELS.find((l) => l.theme === 'Space Fleet')
+    expect(spaceFleet).toBeDefined()
+    expect(spaceFleet.objective).toBe('Destroy 3 enemy waves')
+    expect(spaceFleet.mechanics).toEqual(['move', 'shoot'])
+  })
 })
 
 describe('getLevel', () => {
