@@ -5,8 +5,8 @@ export const GRAVITY = -9.8
 export const MOVE_SPEED = 4
 export const JUMP_SPEED = 5
 
-export function computeVelocity(moveInput, crouch, currentVerticalVelocity) {
-  const speed = crouch ? MOVE_SPEED / 2 : MOVE_SPEED
+export function computeVelocity(moveInput, crouch, currentVerticalVelocity, speedMultiplier = 1) {
+  const speed = (crouch ? MOVE_SPEED / 2 : MOVE_SPEED) * speedMultiplier
   return {
     x: moveInput.x * speed,
     y: currentVerticalVelocity,

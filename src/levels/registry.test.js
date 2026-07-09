@@ -40,6 +40,13 @@ describe('LEVELS', () => {
     expect(brawler.objective).toBe('Deplete opponent health bar')
     expect(brawler.mechanics).toEqual(['move', 'jump', 'crouch', 'shoot'])
   })
+
+  it('includes the Unicorn Forest level per the Level Matrix', () => {
+    const unicorn = LEVELS.find((l) => l.theme === 'Unicorn Forest')
+    expect(unicorn).toBeDefined()
+    expect(unicorn.objective).toBe('Collect 5 magic gems')
+    expect(unicorn.mechanics).toEqual(['move', 'jump', 'magic'])
+  })
 })
 
 describe('getLevel', () => {

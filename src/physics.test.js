@@ -37,6 +37,14 @@ describe('computeVelocity', () => {
   it('is zero when there is no input', () => {
     expect(computeVelocity({ x: 0, y: 0 }, false, 0)).toEqual({ x: 0, y: 0, z: 0 })
   })
+
+  it('scales speed by an optional speed multiplier (for effects like a dash)', () => {
+    expect(computeVelocity({ x: 1, y: 0 }, false, 0, 3)).toEqual({ x: MOVE_SPEED * 3, y: 0, z: 0 })
+  })
+
+  it('defaults the speed multiplier to 1', () => {
+    expect(computeVelocity({ x: 1, y: 0 }, false, 0)).toEqual({ x: MOVE_SPEED, y: 0, z: 0 })
+  })
 })
 
 describe('jumpVelocity', () => {

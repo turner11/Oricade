@@ -7,9 +7,9 @@ export class PlayerController {
     this.body = body
   }
 
-  update(inputState) {
+  update(inputState, speedMultiplier = 1) {
     const grounded = this.body.position.y <= CHARACTER.height / 2 + GROUNDED_EPSILON
-    const velocity = computeVelocity(inputState.move, inputState.crouch, this.body.velocity.y)
+    const velocity = computeVelocity(inputState.move, inputState.crouch, this.body.velocity.y, speedMultiplier)
     const jump = jumpVelocity(grounded, inputState.jump)
 
     this.body.velocity.x = velocity.x
