@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { SCREENS, STARTING_LIVES, createGameState, start, interstitialDone, levelWon, levelFailed } from './game-loop.js'
 
 describe('createGameState', () => {
-  it('starts on the menu with the full life pool', () => {
-    expect(createGameState()).toEqual({ screen: SCREENS.MENU, lives: STARTING_LIVES })
+  it('starts on the menu with the full life pool and the first level', () => {
+    expect(createGameState()).toEqual({ screen: SCREENS.MENU, lives: STARTING_LIVES, levelIndex: 0 })
   })
 })
 
@@ -23,20 +23,25 @@ describe('interstitialDone', () => {
 })
 
 describe('levelWon', () => {
-  it('moves to the victory screen without spending a life', () => {
-    const state = levelWon({ screen: SCREENS.LEVEL, lives: 3 })
-    expect(state).toEqual({ screen: SCREENS.VICTORY, lives: 3 })
+  it('advances to the next level via the interstitial when more levels remain', () => {
+    const state = levelWon({ screen: SCREENS.LEVEL, lives: 3, levelIndex: 0 }, 2)
+    expect(state).toEqual({ screen: SCREENS.INTERSTITIAL, lives: 3, levelIndex: 1 })
+  })
+
+  it('moves to the victory screen after winning the last level', () => {
+    const state = levelWon({ screen: SCREENS.LEVEL, lives: 3, levelIndex: 1 }, 2)
+    expect(state).toEqual({ screen: SCREENS.VICTORY, lives: 3, levelIndex: 1 })
   })
 })
 
 describe('levelFailed', () => {
-  it('spends a life and restarts via the interstitial when lives remain', () => {
-    const state = levelFailed({ screen: SCREENS.LEVEL, lives: 3 })
-    expect(state).toEqual({ screen: SCREENS.INTERSTITIAL, lives: 2 })
+  it('spends a life and restarts the same level via the interstitial when lives remain', () => {
+    const state = levelFailed({ screen: SCREENS.LEVEL, lives: 3, levelIndex: 1 })
+    expect(state).toEqual({ screen: SCREENS.INTERSTITIAL, lives: 2, levelIndex: 1 })
   })
 
   it('goes to game over when the last life is spent', () => {
-    const state = levelFailed({ screen: SCREENS.LEVEL, lives: 1 })
-    expect(state).toEqual({ screen: SCREENS.GAME_OVER, lives: 0 })
+    const state = levelFailed({ screen: SCREENS.LEVEL, lives: 1, levelIndex: 0 })
+    expect(state).toEqual({ screen: SCREENS.GAME_OVER, lives: 0, levelIndex: 0 })
   })
 })
