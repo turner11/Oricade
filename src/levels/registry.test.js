@@ -26,6 +26,13 @@ describe('LEVELS', () => {
     expect(basketball.objective).toBe('Reach a 10-point threshold')
     expect(basketball.mechanics).toEqual(['move', 'jump', 'shoot'])
   })
+
+  it('includes the Retro Platformer level per the Level Matrix', () => {
+    const platformer = LEVELS.find((l) => l.theme === 'Retro Platformer')
+    expect(platformer).toBeDefined()
+    expect(platformer.objective).toBe('Navigate hazards to reach the flag')
+    expect(platformer.mechanics).toEqual(['move', 'jump', 'crouch'])
+  })
 })
 
 describe('getLevel', () => {
