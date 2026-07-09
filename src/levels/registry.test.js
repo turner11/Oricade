@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { LEVELS, getLevel, describeMechanics } from './registry.js'
 
-const REQUIRED_FIELDS = ['id', 'theme', 'perspective', 'objective', 'mechanics', 'markerPosition']
+const REQUIRED_FIELDS = ['id', 'theme', 'perspective', 'objective', 'mechanics', 'createRuntime']
 
 describe('LEVELS', () => {
   it('is a non-empty array of level configs matching the SPEC.md Level Matrix schema', () => {
@@ -9,8 +9,15 @@ describe('LEVELS', () => {
     for (const level of LEVELS) {
       for (const field of REQUIRED_FIELDS) expect(level).toHaveProperty(field)
       expect(Array.isArray(level.mechanics)).toBe(true)
-      expect(level.markerPosition).toEqual(expect.objectContaining({ x: expect.any(Number), y: expect.any(Number), z: expect.any(Number) }))
+      expect(typeof level.createRuntime).toBe('function')
     }
+  })
+
+  it('includes the Soccer level per the Level Matrix', () => {
+    const soccer = LEVELS.find((l) => l.theme === 'Soccer')
+    expect(soccer).toBeDefined()
+    expect(soccer.objective).toBe('Score 3 goals before time expires')
+    expect(soccer.mechanics).toEqual(['move', 'shoot'])
   })
 })
 

@@ -1,3 +1,6 @@
+import { createRuntime as createPlaceholderRuntime } from './placeholder.js'
+import { createRuntime as createSoccerRuntime } from './soccer.js'
+
 const MECHANIC_LABELS = {
   move: 'Move',
   jump: 'Jump',
@@ -13,7 +16,15 @@ export const LEVELS = [
     perspective: 'Free-roam (debug)',
     objective: 'Reach the golden marker',
     mechanics: ['move', 'jump', 'crouch'],
-    markerPosition: { x: 10, y: 0.5, z: 0 },
+    createRuntime: createPlaceholderRuntime,
+  },
+  {
+    id: 2,
+    theme: 'Soccer',
+    perspective: 'Third-person (Isometric)',
+    objective: 'Score 3 goals before time expires',
+    mechanics: ['move', 'shoot'],
+    createRuntime: createSoccerRuntime,
   },
 ]
 
