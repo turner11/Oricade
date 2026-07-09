@@ -19,6 +19,13 @@ describe('LEVELS', () => {
     expect(soccer.objective).toBe('Score 3 goals before time expires')
     expect(soccer.mechanics).toEqual(['move', 'shoot'])
   })
+
+  it('includes the Basketball level per the Level Matrix', () => {
+    const basketball = LEVELS.find((l) => l.theme === 'Basketball')
+    expect(basketball).toBeDefined()
+    expect(basketball.objective).toBe('Reach a 10-point threshold')
+    expect(basketball.mechanics).toEqual(['move', 'jump', 'shoot'])
+  })
 })
 
 describe('getLevel', () => {

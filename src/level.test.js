@@ -1,7 +1,17 @@
 import { describe, it, expect } from 'vitest'
-import { WIN_RADIUS, FAIL_Y, checkLevelOutcome } from './level.js'
+import { WIN_RADIUS, FAIL_Y, checkLevelOutcome, hasFallenOff } from './level.js'
 
 const marker = { x: 10, y: 0.5, z: 0 }
+
+describe('hasFallenOff', () => {
+  it('is true once the player drops below FAIL_Y', () => {
+    expect(hasFallenOff({ x: 0, y: FAIL_Y - 1, z: 0 })).toBe(true)
+  })
+
+  it('is false while the player is above FAIL_Y', () => {
+    expect(hasFallenOff({ x: 0, y: 0.9, z: 0 })).toBe(false)
+  })
+})
 
 describe('checkLevelOutcome', () => {
   it('returns "win" when the player is within WIN_RADIUS of the given marker', () => {
