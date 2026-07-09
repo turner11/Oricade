@@ -1,6 +1,7 @@
 import { createRuntime as createPlaceholderRuntime } from './placeholder.js'
 import { createRuntime as createSoccerRuntime } from './soccer.js'
 import { createRuntime as createBasketballRuntime } from './basketball.js'
+import { createRuntime as createPlatformerRuntime } from './platformer.js'
 
 const MECHANIC_LABELS = {
   move: 'Move',
@@ -34,6 +35,14 @@ export const LEVELS = [
     objective: 'Reach a 10-point threshold',
     mechanics: ['move', 'jump', 'shoot'],
     createRuntime: createBasketballRuntime,
+  },
+  {
+    id: 4,
+    theme: 'Retro Platformer',
+    perspective: 'Third-person (Side-scroll)',
+    objective: 'Navigate hazards to reach the flag',
+    mechanics: ['move', 'jump', 'crouch'],
+    createRuntime: createPlatformerRuntime,
   },
 ]
 
