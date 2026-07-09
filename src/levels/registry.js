@@ -2,6 +2,7 @@ import { createRuntime as createPlaceholderRuntime } from './placeholder.js'
 import { createRuntime as createSoccerRuntime } from './soccer.js'
 import { createRuntime as createBasketballRuntime } from './basketball.js'
 import { createRuntime as createPlatformerRuntime } from './platformer.js'
+import { createRuntime as createBrawlerRuntime } from './brawler.js'
 
 const MECHANIC_LABELS = {
   move: 'Move',
@@ -43,6 +44,14 @@ export const LEVELS = [
     objective: 'Navigate hazards to reach the flag',
     mechanics: ['move', 'jump', 'crouch'],
     createRuntime: createPlatformerRuntime,
+  },
+  {
+    id: 5,
+    theme: 'Brawler',
+    perspective: 'Third-person (Fixed Side 1v1)',
+    objective: 'Deplete opponent health bar',
+    mechanics: ['move', 'jump', 'crouch', 'shoot'],
+    createRuntime: createBrawlerRuntime,
   },
 ]
 
