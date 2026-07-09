@@ -1,5 +1,8 @@
 import * as THREE from 'three'
 import { hasFallenOff } from '../level.js'
+import { PALETTE } from '../theme.js'
+import { spawnBurst } from '../effects/particles.js'
+import { audio } from '../audio.js'
 
 export const GEM_POSITIONS = [
   { x: 4, y: 1, z: 0 },
@@ -36,7 +39,7 @@ export function shouldDash(magicPressed, cooldownRemaining) {
 
 export function createRuntime({ scene, playerBody }) {
   const gems = GEM_POSITIONS.map((position) => {
-    const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.3), new THREE.MeshStandardMaterial({ color: 0xff66ff }))
+    const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.3), new THREE.MeshStandardMaterial({ color: PALETTE.accentPink }))
     mesh.position.set(position.x, position.y, position.z)
     scene.add(mesh)
     return { position, mesh, collected: false }
@@ -54,6 +57,8 @@ export function createRuntime({ scene, playerBody }) {
       if (shouldDash(inputP1.magic, dashCooldownRemaining)) {
         dashTimeRemaining = DASH_DURATION
         dashCooldownRemaining = DASH_COOLDOWN
+        spawnBurst(scene, playerBody.position, PALETTE.accentPurple)
+        audio.playSfx(880, 0.15, 'sine')
       }
 
       for (const gem of gems) {
@@ -61,6 +66,8 @@ export function createRuntime({ scene, playerBody }) {
           gem.collected = true
           gem.mesh.visible = false
           gemsCollected += 1
+          spawnBurst(scene, gem.position, PALETTE.accentPink)
+          audio.playSfx(784, 0.15)
         }
       }
     },

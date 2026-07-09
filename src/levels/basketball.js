@@ -2,6 +2,10 @@ import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 import { hasFallenOff } from '../level.js'
 import { GRAVITY } from '../physics.js'
+import { PALETTE } from '../theme.js'
+import { spawnBurst } from '../effects/particles.js'
+import { triggerShake } from '../effects/screenshake.js'
+import { audio } from '../audio.js'
 
 export const POINTS_TO_WIN = 10
 export const POINTS_PER_BASKET = 2
@@ -52,12 +56,12 @@ export function createRuntime({ scene, world, playerBody }) {
   const ballBody = new CANNON.Body({ mass: 1, shape: new CANNON.Sphere(0.3) })
   world.addBody(ballBody)
 
-  const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshStandardMaterial({ color: 0xff8800 }))
+  const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshStandardMaterial({ color: PALETTE.accentGold }))
   scene.add(ballMesh)
 
   const hoopMesh = new THREE.Mesh(
     new THREE.TorusGeometry(HOOP_RADIUS, 0.05, 8, 24),
-    new THREE.MeshStandardMaterial({ color: 0xff4400 }),
+    new THREE.MeshStandardMaterial({ color: PALETTE.accentRed }),
   )
   hoopMesh.position.set(HOOP_POSITION.x, HOOP_POSITION.y, HOOP_POSITION.z)
   hoopMesh.rotation.x = Math.PI / 2
@@ -82,6 +86,9 @@ export function createRuntime({ scene, world, playerBody }) {
 
       if (isBasket(ballBody.position, HOOP_POSITION)) {
         points += POINTS_PER_BASKET
+        spawnBurst(scene, HOOP_POSITION, PALETTE.accentGold)
+        audio.playSfx(659, 0.2)
+        triggerShake()
         resetBall()
       }
     },

@@ -1,5 +1,9 @@
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
+import { PALETTE } from '../theme.js'
+import { spawnBurst } from '../effects/particles.js'
+import { triggerShake } from '../effects/screenshake.js'
+import { audio } from '../audio.js'
 
 export const TIME_LIMIT = 60
 export const GOALS_TO_WIN = 3
@@ -47,7 +51,7 @@ export function createRuntime({ scene, world, playerBody }) {
 
   const goalMesh = new THREE.Mesh(
     new THREE.BoxGeometry(1, 2, GOAL_ZONE.zMax - GOAL_ZONE.zMin),
-    new THREE.MeshStandardMaterial({ color: 0x00ff88, transparent: true, opacity: 0.4 }),
+    new THREE.MeshStandardMaterial({ color: PALETTE.accentGreen, transparent: true, opacity: 0.4 }),
   )
   goalMesh.position.set(GOAL_ZONE.xMin, 1, (GOAL_ZONE.zMin + GOAL_ZONE.zMax) / 2)
   scene.add(goalMesh)
@@ -72,6 +76,9 @@ export function createRuntime({ scene, world, playerBody }) {
 
       if (isGoal(ballBody.position, GOAL_ZONE)) {
         goals += 1
+        spawnBurst(scene, ballBody.position, PALETTE.accentGreen)
+        audio.playSfx(523, 0.2)
+        triggerShake()
         resetBall()
       }
     },

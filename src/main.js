@@ -5,8 +5,13 @@ import { CHARACTER, createWorld, createGroundBody, createPlayerBody } from './ph
 import { PlayerController } from './player-controller.js'
 import { SCREENS, createGameState, start, interstitialDone, levelWon, levelFailed } from './game-loop.js'
 import { LEVELS, getLevel, describeMechanics } from './levels/registry.js'
+import { PALETTE } from './theme.js'
+import { updateBursts } from './effects/particles.js'
+import { triggerShake, tickShake } from './effects/screenshake.js'
+import { audio, noteFrequency } from './audio.js'
 
 const { scene, camera } = createScene(window.innerWidth / window.innerHeight)
+const baseCameraPosition = camera.position.clone()
 
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setSize(window.innerWidth, window.innerHeight)
@@ -28,7 +33,7 @@ const controller = new PlayerController(playerBody)
 
 const playerMesh = new THREE.Mesh(
   new THREE.BoxGeometry(CHARACTER.width, CHARACTER.height, CHARACTER.width),
-  new THREE.MeshStandardMaterial({ color: 0x4488ff }),
+  new THREE.MeshStandardMaterial({ color: PALETTE.player }),
 )
 scene.add(playerMesh)
 
@@ -93,13 +98,19 @@ function renderScreens() {
 }
 
 function applyTransition(transitionFn, ...args) {
+  const previousScreen = gameState.screen
   gameState = transitionFn(gameState, ...args)
   renderScreens()
+
   if (gameState.screen === SCREENS.INTERSTITIAL) {
+    audio.playMusicForLevel(gameState.levelIndex)
+    if (previousScreen === SCREENS.LEVEL) triggerShake() // juice: shake on a failed attempt
     setTimeout(() => {
       enterLevel(gameState.levelIndex)
       applyTransition(interstitialDone)
     }, 3000)
+  } else if (gameState.screen === SCREENS.VICTORY) {
+    audio.playSfx(noteFrequency(gameState.levelIndex) * 2, 0.4, 'triangle')
   }
 }
 
@@ -137,6 +148,13 @@ renderer.setAnimationLoop(() => {
     if (outcome === 'win') applyTransition(levelWon, LEVELS.length)
     else if (outcome === 'fail') applyTransition(levelFailed)
   }
+
+  updateBursts(scene, dt)
+  const shake = tickShake(dt)
+  camera.position.lerp(
+    new THREE.Vector3(baseCameraPosition.x + shake.x, baseCameraPosition.y + shake.y, baseCameraPosition.z + shake.z),
+    0.3,
+  )
 
   const { x, y, z } = playerBody.position
   debugOverlay.textContent = `screen=${gameState.screen} level=${gameState.levelIndex} lives=${gameState.lives}\nP1 ${JSON.stringify(state.p1)}\nP2 ${JSON.stringify(state.p2)}\npos=(${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`

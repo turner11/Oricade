@@ -1,5 +1,9 @@
 import * as THREE from 'three'
 import { hasFallenOff } from '../level.js'
+import { PALETTE } from '../theme.js'
+import { spawnBurst } from '../effects/particles.js'
+import { triggerShake } from '../effects/screenshake.js'
+import { audio, noteFrequency } from '../audio.js'
 
 export const PHASE_COUNT = 3
 export const PHASE_MAX_HEALTH = 60
@@ -43,12 +47,12 @@ export function shouldStrike(playerPosition, bossPosition, phase, inputP1, coold
 }
 
 export function createRuntime({ scene, playerBody }) {
-  const bossMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.4, 1.2), new THREE.MeshStandardMaterial({ color: 0x9922cc }))
+  const bossMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.4, 1.2), new THREE.MeshStandardMaterial({ color: PALETTE.accentPurple }))
   bossMesh.position.set(BOSS_POSITION.x, BOSS_POSITION.y, BOSS_POSITION.z)
   scene.add(bossMesh)
 
   const healthBarBack = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.2), new THREE.MeshBasicMaterial({ color: 0x333333 }))
-  const healthBarFront = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.2), new THREE.MeshBasicMaterial({ color: 0xee3355 }))
+  const healthBarFront = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.2), new THREE.MeshBasicMaterial({ color: PALETTE.accentRed }))
   healthBarBack.position.set(BOSS_POSITION.x, BOSS_POSITION.y + 2, BOSS_POSITION.z)
   healthBarFront.position.set(BOSS_POSITION.x, BOSS_POSITION.y + 2, BOSS_POSITION.z + 0.01)
   scene.add(healthBarBack, healthBarFront)
@@ -83,6 +87,9 @@ export function createRuntime({ scene, playerBody }) {
         phaseHealth = Math.max(0, phaseHealth - DAMAGE_PER_HIT)
         cooldownRemaining = STRIKE_COOLDOWN
         updateHealthBar()
+        spawnBurst(scene, BOSS_POSITION, PALETTE.accentRed)
+        audio.playSfx(196, 0.15, 'sawtooth')
+        triggerShake()
 
         if (phaseHealth <= 0) {
           phaseIndex += 1
@@ -90,11 +97,13 @@ export function createRuntime({ scene, playerBody }) {
             phaseHealth = PHASE_MAX_HEALTH
             showDialogue(PHASES[phaseIndex].dialogue)
             updateHealthBar()
+            audio.playSfx(noteFrequency(phaseIndex) * 2, 0.25, 'triangle')
           } else {
             showDialogue('The boss has been defeated! Victory!')
             bossMesh.visible = false
             healthBarBack.visible = false
             healthBarFront.visible = false
+            spawnBurst(scene, BOSS_POSITION, PALETTE.accentGold)
           }
         }
       }
