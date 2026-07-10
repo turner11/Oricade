@@ -1,15 +1,19 @@
 import { describe, it, expect } from 'vitest'
+import * as THREE from 'three'
+import { createWorld, createPlayerBody } from '../physics.js'
 import {
   POINTS_TO_WIN,
   POINTS_PER_BASKET,
   HOOP_POSITION,
   HOOP_RADIUS,
   THROW_RADIUS,
+  BALL_COLOR,
   checkBasketballOutcome,
   hudStatus,
   isBasket,
   shouldThrow,
   computeArcVelocity,
+  createRuntime,
 } from './basketball.js'
 
 describe('checkBasketballOutcome', () => {
@@ -81,5 +85,25 @@ describe('computeArcVelocity', () => {
 describe('hudStatus', () => {
   it('shows live points progress for the arcade HUD', () => {
     expect(hudStatus({ points: 4 })).toBe(`🏀 4/${POINTS_TO_WIN} POINTS`)
+  })
+})
+
+describe('createRuntime scenery', () => {
+  it('mounts the hoop on a backboard and pole like a real basketball hoop', () => {
+    const scene = new THREE.Scene()
+    createRuntime({ scene, world: createWorld(), playerBody: createPlayerBody() })
+
+    const stand = scene.getObjectByName('hoop-stand')
+    expect(stand).toBeDefined()
+    expect(stand.getObjectByName('backboard')).toBeDefined()
+    expect(stand.getObjectByName('pole')).toBeDefined()
+  })
+
+  it('uses an orange basketball', () => {
+    const scene = new THREE.Scene()
+    createRuntime({ scene, world: createWorld(), playerBody: createPlayerBody() })
+
+    expect(BALL_COLOR).toBe(0xff8c42)
+    expect(scene.getObjectByName('ball').material.color.getHex()).toBe(BALL_COLOR)
   })
 })

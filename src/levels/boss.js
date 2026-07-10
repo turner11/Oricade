@@ -118,6 +118,10 @@ export function createRuntime({ scene, playerBody }) {
     checkOutcome() {
       return checkBossOutcome({ phaseIndex, playerPosition: playerBody.position })
     },
+    deactivate() {
+      // the banner is a DOM overlay, not a scene mesh — hide it when leaving the level
+      dialogueBanner.style.display = 'none'
+    },
     reset() {
       phaseIndex = 0
       phaseHealth = PHASE_MAX_HEALTH
@@ -125,6 +129,7 @@ export function createRuntime({ scene, playerBody }) {
       bossMesh.visible = true
       healthBarBack.visible = true
       healthBarFront.visible = true
+      dialogueBanner.style.display = ''
       updateHealthBar()
       showDialogue(PHASES[0].dialogue)
     },

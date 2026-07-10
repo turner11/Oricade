@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import * as THREE from 'three'
+import { createWorld, createPlayerBody } from '../physics.js'
 import {
   GOALS_TO_WIN,
   GOAL_ZONE,
@@ -9,6 +11,7 @@ import {
   isGoal,
   shouldKick,
   computeKickImpulse,
+  createRuntime,
 } from './soccer.js'
 
 describe('checkSoccerOutcome', () => {
@@ -75,5 +78,18 @@ describe('computeKickImpulse', () => {
 describe('hudStatus', () => {
   it('shows live goal count and remaining time for the arcade HUD', () => {
     expect(hudStatus({ goals: 1, timeRemaining: 42 })).toBe(`⚽ 1/${GOALS_TO_WIN} GOALS · 0:42`)
+  })
+})
+
+describe('createRuntime scenery', () => {
+  it('builds a real goal frame — posts, crossbar, and net — instead of a placeholder box', () => {
+    const scene = new THREE.Scene()
+    createRuntime({ scene, world: createWorld(), playerBody: createPlayerBody() })
+
+    const goal = scene.getObjectByName('goal')
+    expect(goal).toBeDefined()
+    for (const part of ['post-left', 'post-right', 'crossbar', 'net']) {
+      expect(goal.getObjectByName(part)).toBeDefined()
+    }
   })
 })

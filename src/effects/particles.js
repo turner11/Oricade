@@ -37,11 +37,12 @@ export function spawnBurst(scene, position, color) {
   }
 }
 
-export function updateBursts(scene, dt) {
+export function updateBursts(dt) {
   for (let i = active.length - 1; i >= 0; i--) {
     const next = stepParticle(active[i], dt)
     if (isExpired(next)) {
-      scene.remove(active[i].mesh)
+      // bursts may live inside a level group, not the root scene
+      active[i].mesh.removeFromParent()
       active.splice(i, 1)
     } else {
       active[i] = { ...next, mesh: active[i].mesh }
