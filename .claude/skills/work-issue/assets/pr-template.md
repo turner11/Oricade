@@ -4,8 +4,8 @@
 
 ## Changes
 
-- `path/to/file.py` — <what changed>
-- `path/to/test_file.py` — <N new tests>
+- `src/path/to/file.js` — <what changed>
+- `src/path/to/file.test.js` — <N new tests>
 
 ## Test plan
 

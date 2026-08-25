@@ -18,8 +18,7 @@ Look for these files at the project root (or in the affected module) to determin
 
 ## Notes
 
-- This project uses **uv** — run tests with `uv run pytest` (see `pyproject.toml`).
-- If the project uses a virtual environment, activate it before running tests.
-- If `PYTHONPATH` or similar env vars are needed, check the project's README, Makefile, or CI config (`.gitlab-ci.yml`) for the correct values.
-- For monorepos, `cd` into the correct sub-directory before running tests.
-- When in doubt, check `.gitlab-ci.yml` for the test stage — it shows exactly how CI runs the suite.
+- This project uses **Vite + Vitest** (see `package.json`). Full suite: `npm run test` (runs `vitest run`).
+  Targeted: `npx vitest run <file>` or `npx vitest run -t "<test name>"`.
+- Tests are colocated with source (`src/foo.js` / `src/foo.test.js`), not in a separate `tests/` tree.
+- When in doubt, check `.github/workflows/` for the CI job — it shows exactly how CI runs the suite.
