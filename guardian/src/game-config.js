@@ -14,3 +14,9 @@ export const ZANE_SPEED = 60
 export const ZANE_DASH_SPEED = 200
 export const SIGHT_RANGE = 160
 export const TYPEWRITER_MS_PER_CHAR = 30
+
+// ponytail: tuning knobs, not measured constants — eyeball these in the manual smoke test.
+export const PHASE_MS = 30_000 // half-cycle; a full day+night is 60s
+export const NIGHT_TINT = 0x0a1a3a
+export const NIGHT_TINT_ALPHA = 0.45
+export const ASH_SPEED_MULT = 1.5
