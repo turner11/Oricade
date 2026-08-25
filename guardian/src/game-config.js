@@ -13,3 +13,4 @@ export const ZANE_HP = 3
 export const ZANE_SPEED = 60
 export const ZANE_DASH_SPEED = 200
 export const SIGHT_RANGE = 160
+export const TYPEWRITER_MS_PER_CHAR = 30

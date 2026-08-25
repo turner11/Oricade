@@ -10,6 +10,7 @@ import {
   ZANE_SPEED,
   ZANE_DASH_SPEED,
   SIGHT_RANGE,
+  TYPEWRITER_MS_PER_CHAR,
 } from './game-config.js'
 import {
   TILE,
@@ -20,15 +21,18 @@ import {
   spawnPoint,
   doorPosition,
   keyPosition,
+  npcPosition,
   facingFrom,
   SHRINE_KEY,
 } from './zone.js'
 import { ZANE_PATROL, attackRect, takeHit, hasLineOfSight, heartString } from './combat.js'
 import { SAVE_KEY, defaultState, serialize, deserialize } from './save.js'
+import { NPC_LINE, typewriterChars, questLogEntries } from './dialogue.js'
 
 const ZANE_COLOR = 0xb23a48
 const KEY_COLOR = 0xffd60a
 const DOOR_COLOR = 0x6b4226
+const NPC_COLOR = 0x6a4c93
 
 const SPRITE_W = 16
 const SPRITE_H = 20
@@ -52,6 +56,7 @@ export class MainScene extends Phaser.Scene {
 
     const save = deserialize(localStorage.getItem(SAVE_KEY)) ?? defaultState()
     this.inventory = save.inventory
+    this.talkedToNpc = save.talkedToNpc
 
     const walls = this.physics.add.staticGroup()
     ZONE.forEach((row, r) => {
@@ -93,6 +98,10 @@ export class MainScene extends Phaser.Scene {
 
     this.spawnZane()
     this.spawnShrine()
+    this.spawnNpc()
+
+    this.dialogueOpen = false
+    this.updateQuestLogUI()
 
     // ponytail: HP is a Phaser text object with setScrollFactor(0), not the HTML/CSS overlay
     // the GDD §4 describes — fold it into the real overlay in GoJ 06, when dialogue and the
@@ -129,6 +138,22 @@ export class MainScene extends Phaser.Scene {
     this.walls.add(this.doorBody)
   }
 
+  // Static overlap target (dialogue trigger), not an obstacle — no wall collider needed. Same
+  // "bake a flat-color texture once, cache on the scene" pattern as spawnZane()/spawnShrine().
+  // ponytail: flat color block, no walk cycle — same art-pass deferral as Zane, see SPRITE_FRAMES.
+  spawnNpc() {
+    if (!this.textures.exists('npc')) {
+      const g = this.add.graphics()
+      g.fillStyle(NPC_COLOR, 1)
+      g.fillRect(0, 0, SPRITE_W, SPRITE_H)
+      g.generateTexture('npc', SPRITE_W, SPRITE_H)
+      g.destroy()
+    }
+
+    const npc = npcPosition()
+    this.npc = this.physics.add.sprite(npc.x, npc.y, 'npc')
+  }
+
   // Push the key into inventory, tear down the sprite/overlap/door body — same "destroy
   // sprite + destroy every collider bound to it" pattern as destroyZane(), since Arcade
   // Physics leaks stale colliders otherwise. this.walls auto-drops doorBody on its destroy().
@@ -140,6 +165,7 @@ export class MainScene extends Phaser.Scene {
     this.doorBody.destroy()
     this.doorBody = null
     this.updateInventoryUI()
+    this.updateQuestLogUI()
     this.save()
   }
 
@@ -151,6 +177,13 @@ export class MainScene extends Phaser.Scene {
       : 'Inventory: (empty)'
   }
 
+  updateQuestLogUI() {
+    const el = document.getElementById('quest-log-ui')
+    if (!el) return
+    const entries = questLogEntries(this.talkedToNpc, this.inventory.includes(SHRINE_KEY))
+    el.textContent = entries.map((e) => `${e.text}${e.done ? ' (done)' : ''}`).join('\n')
+  }
+
   // localStorage can throw in private-browsing/quota-exceeded edge cases — swallow and
   // continue rather than crash gameplay over a save failure (no retry/backoff: out of scope
   // per the issue's "autosave cadence").
@@ -158,6 +191,7 @@ export class MainScene extends Phaser.Scene {
     const state = {
       player: { x: this.player.x, y: this.player.y, hp: this.playerState.hp },
       inventory: this.inventory,
+      talkedToNpc: this.talkedToNpc,
     }
     try {
       localStorage.setItem(SAVE_KEY, serialize(state))
@@ -300,6 +334,32 @@ export class MainScene extends Phaser.Scene {
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.attackKey)) this.doAttack()
+
+    const nearNpc = this.physics.overlap(this.player, this.npc)
+    if (nearNpc && !this.dialogueOpen) {
+      this.dialogueOpen = true
+      this.dialogueStart = this.time.now
+      if (!this.talkedToNpc) {
+        this.talkedToNpc = true
+        this.updateQuestLogUI()
+        this.save()
+      }
+    } else if (!nearNpc && this.dialogueOpen) {
+      this.dialogueOpen = false
+    }
+
+    const dialogueEl = document.getElementById('dialogue-ui')
+    if (dialogueEl) {
+      dialogueEl.style.display = this.dialogueOpen ? 'block' : 'none'
+      if (this.dialogueOpen) {
+        const chars = typewriterChars(
+          this.time.now - this.dialogueStart,
+          TYPEWRITER_MS_PER_CHAR,
+          NPC_LINE.length
+        )
+        dialogueEl.textContent = NPC_LINE.slice(0, chars)
+      }
+    }
 
     if (this.zane) {
       const waypoint = ZANE_PATROL[this.zaneWaypoint]
