@@ -1,11 +1,19 @@
 import Phaser from 'phaser'
 import { WALK_SPEED } from './game-config.js'
-import { TILE, ZONE, isSolid, zoneSize, spawnPoint, facingFrom, SPRITE_FRAMES } from './zone.js'
+import { TILE, ZONE, TILE_COLOR, isSolid, zoneSize, spawnPoint, facingFrom } from './zone.js'
 
-const DIRECTIONS = ['up', 'down', 'left', 'right']
-const TILE_COLOR = { '#': 0x4a4a4a, T: 0x2d5a27, '~': 0x1f4e79 }
 const SPRITE_W = 16
 const SPRITE_H = 20
+const LEG_OFFSETS = [-3, 3]
+
+// Placeholder walk-cycle colors, one per direction. ponytail: flat color blocks, not real
+// sprites — swap for a real spritesheet in the GoJ 11 art pass.
+const SPRITE_FRAMES = {
+  up: 0x3d5a80,
+  down: 0xee6c4d,
+  left: 0x8ecae6,
+  right: 0xffb703,
+}
 
 // ponytail: untested — same Phaser/canvas ceiling as main.js, see that file.
 export class MainScene extends Phaser.Scene {
@@ -47,13 +55,12 @@ export class MainScene extends Phaser.Scene {
   }
 
   // Placeholder walk-cycle art: bake two Graphics frames per direction (legs swap sides) into
-  // textures via Graphics#generateTexture — see the ponytail note on SPRITE_FRAMES in zone.js.
+  // textures via Graphics#generateTexture — see the ponytail note on SPRITE_FRAMES above.
   createWalkAnims() {
     const g = this.add.graphics()
 
-    DIRECTIONS.forEach((dir) => {
-      const { color, legOffsets } = SPRITE_FRAMES[dir]
-      legOffsets.forEach((legOffset, i) => {
+    Object.entries(SPRITE_FRAMES).forEach(([dir, color]) => {
+      LEG_OFFSETS.forEach((legOffset, i) => {
         g.clear()
         g.fillStyle(color, 1)
         g.fillRect(2, 0, 12, 14)

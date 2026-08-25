@@ -5,7 +5,10 @@ export const TILE = 32
 
 const COLS = 40
 const ROWS = 24
-const SOLID = ['#', 'T', '~']
+
+// Canonical solid-tile vocabulary: char -> placeholder color. isSolid() and scene.js's rectangle
+// fill both derive from this one map instead of hand-keeping their own copies of the tile list.
+export const TILE_COLOR = { '#': 0x4a4a4a, T: 0x2d5a27, '~': 0x1f4e79 }
 
 function buildZone() {
   const grid = Array.from({ length: ROWS }, () => new Array(COLS).fill('.'))
@@ -32,32 +35,21 @@ function buildZone() {
 export const ZONE = buildZone()
 
 export function isSolid(ch) {
-  return SOLID.includes(ch)
+  return Object.keys(TILE_COLOR).includes(ch)
 }
 
-export function zoneSize(zone = ZONE, tile = TILE) {
-  return { width: zone[0].length * tile, height: zone.length * tile }
+export function zoneSize() {
+  return { width: ZONE[0].length * TILE, height: ZONE.length * TILE }
 }
 
-export function spawnPoint(zone = ZONE, tile = TILE) {
-  const row = zone.findIndex((r) => r.includes('P'))
-  const col = zone[row].indexOf('P')
-  return { x: col * tile + tile / 2, y: row * tile + tile / 2 }
+export function spawnPoint() {
+  const row = ZONE.findIndex((r) => r.includes('P'))
+  const col = ZONE[row].indexOf('P')
+  return { x: col * TILE + TILE / 2, y: row * TILE + TILE / 2 }
 }
 
 // ponytail: three lines — doesn't earn its own movement.js.
 export function facingFrom(vx, vy) {
   if (vx === 0 && vy === 0) return null
   return Math.abs(vx) >= Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : vy > 0 ? 'down' : 'up'
-}
-
-// ponytail: placeholder pixel art (flat color blocks, not real sprites) — swap for a real
-// spritesheet in the GoJ 11 art pass. Phaser 4.2.1 dropped TextureManager#generate (this plan's
-// original target); scene.js bakes these via Graphics#generateTexture instead — the documented
-// fallback for that API drift. Two leg x-offsets per direction drive the walk-cycle toggle.
-export const SPRITE_FRAMES = {
-  up: { color: 0x3d5a80, legOffsets: [-3, 3] },
-  down: { color: 0xee6c4d, legOffsets: [-3, 3] },
-  left: { color: 0x8ecae6, legOffsets: [-3, 3] },
-  right: { color: 0xffb703, legOffsets: [-3, 3] },
 }
