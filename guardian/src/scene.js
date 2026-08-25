@@ -3,6 +3,7 @@ import { WIDTH, HEIGHT } from './game-config.js'
 
 const TILE = 64
 
+// ponytail: untested — same Phaser/canvas ceiling as main.js, see that file.
 export class MainScene extends Phaser.Scene {
   create() {
     const g = this.add.graphics()
