@@ -4,12 +4,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/assemble-dist.js",
+    "build": "vite build && vite build --config guardian/vite.config.js && node scripts/assemble-dist.js",
     "preview": "vite preview",
     "test": "vitest run"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",
+    "phaser": "^4.2.1",
     "three": "^0.169.0"
   },
   "devDependencies": {
