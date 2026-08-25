@@ -16,7 +16,14 @@ import {
 // Zane/Stormy — see the `phase` field. `speed`/`dashSpeed` only exist on kinds whose behaviour
 // moves them (chaser, erratic); casters and the guard are stationary.
 export const ENEMY = {
-  zane: { color: 0xb23a48, behavior: 'chaser', hp: ZANE_HP, speed: ZANE_SPEED, dashSpeed: ZANE_DASH_SPEED, phase: 'day' },
+  zane: {
+    color: 0xb23a48,
+    behavior: 'chaser',
+    hp: ZANE_HP,
+    speed: ZANE_SPEED,
+    dashSpeed: ZANE_DASH_SPEED,
+    phase: 'day',
+  },
   ash: {
     color: 0xd1cfe2,
     behavior: 'chaser',
@@ -25,8 +32,22 @@ export const ENEMY = {
     dashSpeed: ZANE_DASH_SPEED * ASH_SPEED_MULT,
     phase: 'night',
   },
-  stormy: { color: 0x4a7ba6, behavior: 'caster', hp: 2, projectiles: 1, fireMs: STORMY_FIRE_MS, phase: 'day' },
-  whisper: { color: 0x5a4a86, behavior: 'caster', hp: 2, projectiles: 2, fireMs: STORMY_FIRE_MS, phase: 'night' },
+  stormy: {
+    color: 0x4a7ba6,
+    behavior: 'caster',
+    hp: 2,
+    projectiles: 1,
+    fireMs: STORMY_FIRE_MS,
+    phase: 'day',
+  },
+  whisper: {
+    color: 0x5a4a86,
+    behavior: 'caster',
+    hp: 2,
+    projectiles: 2,
+    fireMs: STORMY_FIRE_MS,
+    phase: 'night',
+  },
   ember: { color: 0xd1611a, behavior: 'guard', hp: 4 },
   gale: { color: 0x8ad1c2, behavior: 'erratic', hp: 1, speed: GALE_SPEED, contactDamage: 0 },
 }
