@@ -34,6 +34,7 @@ function buildZone() {
   }
   grid[3][3] = 'P' // spawn
   grid[2][6] = 'K' // shrine key, open field
+  grid[5][15] = 'N' // NPC, open field clear of walls/tree line/pond/shrine/Zane patrol
 
   // Shrine room: 6x5 walled rectangle with a single door gap in the bottom wall.
   for (let c = 30; c <= 35; c++) {
@@ -77,6 +78,10 @@ export function doorPosition() {
 
 export function keyPosition() {
   return tilePosition('K')
+}
+
+export function npcPosition() {
+  return tilePosition('N')
 }
 
 // ponytail: three lines — doesn't earn its own movement.js.

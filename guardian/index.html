@@ -16,10 +16,34 @@
         color: #fff;
         background: rgba(0, 0, 0, 0.5);
       }
+      #quest-log-ui {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        padding: 4px 8px;
+        font: 14px sans-serif;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.5);
+        white-space: pre-line;
+      }
+      #dialogue-ui {
+        display: none;
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 480px;
+        padding: 8px 12px;
+        font: 14px sans-serif;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.7);
+      }
     </style>
   </head>
   <body>
     <div id="inventory-ui">Inventory: (empty)</div>
+    <div id="quest-log-ui"></div>
+    <div id="dialogue-ui"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
