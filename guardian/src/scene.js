@@ -100,10 +100,20 @@ export class MainScene extends Phaser.Scene {
 
     const start = ZANE_PATROL[0]
     this.zane = this.physics.add.sprite(start.x, start.y, 'zane')
-    this.physics.add.collider(this.zane, this.walls)
-    this.physics.add.overlap(this.player, this.zane, () => this.onZaneContact())
+    this.zaneWallCollider = this.physics.add.collider(this.zane, this.walls)
+    this.zaneOverlap = this.physics.add.overlap(this.player, this.zane, () => this.onZaneContact())
     this.zaneState = { hp: ZANE_HP, invincibleUntil: 0 }
     this.zaneWaypoint = 0
+  }
+
+  // Destroys the sprite alongside its colliders — Arcade Physics doesn't drop a Collider just
+  // because one side's body is gone, so leaving these out lets stale colliders pile up in the
+  // physics world across swings/respawns.
+  destroyZane() {
+    this.zane.destroy()
+    this.zaneWallCollider.destroy()
+    this.zaneOverlap.destroy()
+    this.zane = null
   }
 
   doAttack() {
@@ -117,16 +127,16 @@ export class MainScene extends Phaser.Scene {
     // extra code.
     const rect = this.add.rectangle(box.x, box.y, box.width, box.height, 0xffffff, 0.4)
     this.physics.add.existing(rect)
-    if (this.zane) {
-      this.physics.add.overlap(rect, this.zane, () => {
-        this.zaneState = takeHit(this.zaneState, this.time.now, ATTACK_MS)
-        if (this.zaneState.hp <= 0) {
-          this.zane.destroy()
-          this.zane = null
-        }
-      })
-    }
-    this.time.delayedCall(ATTACK_MS, () => rect.destroy())
+    const overlap = this.zane
+      ? this.physics.add.overlap(rect, this.zane, () => {
+          this.zaneState = takeHit(this.zaneState, this.time.now, ATTACK_MS)
+          if (this.zaneState.hp <= 0) this.destroyZane()
+        })
+      : null
+    this.time.delayedCall(ATTACK_MS, () => {
+      rect.destroy()
+      overlap?.destroy()
+    })
   }
 
   onZaneContact() {
@@ -151,7 +161,7 @@ export class MainScene extends Phaser.Scene {
     this.player.setPosition(spawn.x, spawn.y)
     this.playerState = { hp: PLAYER_MAX_HP, invincibleUntil: 0 }
     this.hpText.setText(heartString(this.playerState.hp, PLAYER_MAX_HP))
-    if (this.zane) this.zane.destroy()
+    if (this.zane) this.destroyZane()
     this.spawnZane()
   }
 
