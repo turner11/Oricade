@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import { WIDTH, HEIGHT } from './game-config.js'
-import { TILE, ZONE, isSolid, zoneSize, spawnPoint, facingFrom } from './zone.js'
+import {
+  TILE,
+  ZONE,
+  isSolid,
+  zoneSize,
+  spawnPoint,
+  facingFrom,
+  doorPosition,
+  keyPosition,
+} from './zone.js'
 
 describe('isSolid', () => {
   it('blocks walls, trees and water but not grass or the spawn tile', () => {
@@ -54,6 +63,54 @@ describe('spawnPoint', () => {
     expect(point.x).toBe(spawnCol * TILE + TILE / 2)
     expect(point.y).toBe(spawnRow * TILE + TILE / 2)
     expect(isSolid('P')).toBe(false)
+  })
+})
+
+describe('doorPosition', () => {
+  it('returns the pixel centre of the one shrine-door tile', () => {
+    let doorCount = 0
+    let doorRow = -1
+    let doorCol = -1
+    ZONE.forEach((row, r) => {
+      const c = row.indexOf('D')
+      if (c !== -1) {
+        doorCount += 1
+        doorRow = r
+        doorCol = c
+      }
+    })
+    expect(doorCount).toBe(1)
+
+    const point = doorPosition()
+    expect(point.x).toBe(doorCol * TILE + TILE / 2)
+    expect(point.y).toBe(doorRow * TILE + TILE / 2)
+    expect(isSolid('D')).toBe(false)
+  })
+})
+
+describe('keyPosition', () => {
+  it('returns the pixel centre of the one shrine-key tile', () => {
+    let keyCount = 0
+    let keyRow = -1
+    let keyCol = -1
+    ZONE.forEach((row, r) => {
+      const c = row.indexOf('K')
+      if (c !== -1) {
+        keyCount += 1
+        keyRow = r
+        keyCol = c
+      }
+    })
+    expect(keyCount).toBe(1)
+
+    const point = keyPosition()
+    expect(point.x).toBe(keyCol * TILE + TILE / 2)
+    expect(point.y).toBe(keyRow * TILE + TILE / 2)
+
+    const door = doorPosition()
+    const spawn = spawnPoint()
+    expect(point).not.toEqual(door)
+    expect(point).not.toEqual(spawn)
   })
 })
 

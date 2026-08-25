@@ -10,6 +10,11 @@ const ROWS = 24
 // fill both derive from this one map instead of hand-keeping their own copies of the tile list.
 export const TILE_COLOR = { '#': 0x4a4a4a, T: 0x2d5a27, '~': 0x1f4e79 }
 
+// Inventory item id for the shrine key pickup. Deliberately not in TILE_COLOR: 'D'/'K' stay
+// non-solid in the generic wall loop so scene.js gates the door dynamically (locked = solid
+// body added at runtime, unlocked = the tile is already open floor).
+export const SHRINE_KEY = 'shrine-key'
+
 function buildZone() {
   const grid = Array.from({ length: ROWS }, () => new Array(COLS).fill('.'))
 
@@ -28,6 +33,18 @@ function buildZone() {
     for (let c = 5; c <= 9; c++) grid[r][c] = '~' // water pond
   }
   grid[3][3] = 'P' // spawn
+  grid[2][6] = 'K' // shrine key, open field
+
+  // Shrine room: 6x5 walled rectangle with a single door gap in the bottom wall.
+  for (let c = 30; c <= 35; c++) {
+    grid[17][c] = '#'
+    grid[21][c] = '#'
+  }
+  for (let r = 17; r <= 21; r++) {
+    grid[r][30] = '#'
+    grid[r][35] = '#'
+  }
+  grid[21][32] = 'D' // door gap
 
   return grid.map((row) => row.join(''))
 }
@@ -42,10 +59,24 @@ export function zoneSize() {
   return { width: ZONE[0].length * TILE, height: ZONE.length * TILE }
 }
 
-export function spawnPoint() {
-  const row = ZONE.findIndex((r) => r.includes('P'))
-  const col = ZONE[row].indexOf('P')
+// Pixel centre of the one tile matching `ch` in ZONE. spawnPoint/doorPosition/keyPosition are
+// all "find the tile, then convert grid coords to pixels" — this is that lookup, shared.
+function tilePosition(ch) {
+  const row = ZONE.findIndex((r) => r.includes(ch))
+  const col = ZONE[row].indexOf(ch)
   return { x: col * TILE + TILE / 2, y: row * TILE + TILE / 2 }
+}
+
+export function spawnPoint() {
+  return tilePosition('P')
+}
+
+export function doorPosition() {
+  return tilePosition('D')
+}
+
+export function keyPosition() {
+  return tilePosition('K')
 }
 
 // ponytail: three lines — doesn't earn its own movement.js.

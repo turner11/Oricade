@@ -11,10 +11,24 @@ import {
   ZANE_DASH_SPEED,
   SIGHT_RANGE,
 } from './game-config.js'
-import { TILE, ZONE, TILE_COLOR, isSolid, zoneSize, spawnPoint, facingFrom } from './zone.js'
+import {
+  TILE,
+  ZONE,
+  TILE_COLOR,
+  isSolid,
+  zoneSize,
+  spawnPoint,
+  doorPosition,
+  keyPosition,
+  facingFrom,
+  SHRINE_KEY,
+} from './zone.js'
 import { ZANE_PATROL, attackRect, takeHit, hasLineOfSight, heartString } from './combat.js'
+import { SAVE_KEY, defaultState, serialize, deserialize } from './save.js'
 
 const ZANE_COLOR = 0xb23a48
+const KEY_COLOR = 0xffd60a
+const DOOR_COLOR = 0x6b4226
 
 const SPRITE_W = 16
 const SPRITE_H = 20
@@ -36,6 +50,9 @@ export class MainScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x14141f).setOrigin(0, 0)
 
+    const save = deserialize(localStorage.getItem(SAVE_KEY)) ?? defaultState()
+    this.inventory = save.inventory
+
     const walls = this.physics.add.staticGroup()
     ZONE.forEach((row, r) => {
       for (let c = 0; c < row.length; c++) {
@@ -55,8 +72,7 @@ export class MainScene extends Phaser.Scene {
 
     this.createWalkAnims()
 
-    const spawn = spawnPoint()
-    this.player = this.physics.add.sprite(spawn.x, spawn.y, 'walk-down-0')
+    this.player = this.physics.add.sprite(save.player.x, save.player.y, 'walk-down-0')
     this.player.body.setSize(TILE * 0.6, TILE * 0.6)
     this.player.setCollideWorldBounds(true)
     this.physics.add.collider(this.player, walls)
@@ -71,18 +87,83 @@ export class MainScene extends Phaser.Scene {
     this.input.on('pointerdown', () => this.doAttack())
 
     this.facing = 'down'
-    this.playerState = { hp: PLAYER_MAX_HP, invincibleUntil: 0 }
+    this.playerState = { hp: save.player.hp, invincibleUntil: 0 }
     this.attackUntil = 0
     this.knockbackUntil = 0
 
     this.spawnZane()
+    this.spawnShrine()
 
     // ponytail: HP is a Phaser text object with setScrollFactor(0), not the HTML/CSS overlay
     // the GDD §4 describes — fold it into the real overlay in GoJ 06, when dialogue and the
-    // quest log need one anyway.
+    // quest log need one anyway. The inventory readout below uses the real overlay already,
+    // since this issue is the one that introduces it.
     this.hpText = this.add
       .text(8, 8, heartString(this.playerState.hp, PLAYER_MAX_HP), { fontSize: '20px' })
       .setScrollFactor(0)
+
+    this.updateInventoryUI()
+  }
+
+  // Spawns the shrine key pickup and its locked door only if the key isn't already in the
+  // loaded save's inventory — mirrors spawnZane()'s "bake texture once" pattern.
+  spawnShrine() {
+    if (this.inventory.includes(SHRINE_KEY)) return
+
+    if (!this.textures.exists('shrine-key')) {
+      const g = this.add.graphics()
+      g.fillStyle(KEY_COLOR, 1)
+      g.fillRect(0, 0, TILE * 0.5, TILE * 0.5)
+      g.generateTexture('shrine-key', TILE * 0.5, TILE * 0.5)
+      g.destroy()
+    }
+
+    const key = keyPosition()
+    this.keySprite = this.physics.add.sprite(key.x, key.y, 'shrine-key')
+    this.keyOverlap = this.physics.add.overlap(this.player, this.keySprite, () =>
+      this.pickupKey()
+    )
+
+    const door = doorPosition()
+    this.doorBody = this.add.rectangle(door.x, door.y, TILE, TILE, DOOR_COLOR)
+    this.walls.add(this.doorBody)
+  }
+
+  // Push the key into inventory, tear down the sprite/overlap/door body — same "destroy
+  // sprite + destroy every collider bound to it" pattern as destroyZane(), since Arcade
+  // Physics leaks stale colliders otherwise. this.walls auto-drops doorBody on its destroy().
+  pickupKey() {
+    this.inventory.push(SHRINE_KEY)
+    this.keySprite.destroy()
+    this.keyOverlap.destroy()
+    this.keySprite = null
+    this.doorBody.destroy()
+    this.doorBody = null
+    this.updateInventoryUI()
+    this.save()
+  }
+
+  updateInventoryUI() {
+    const el = document.getElementById('inventory-ui')
+    if (!el) return
+    el.textContent = this.inventory.includes(SHRINE_KEY)
+      ? 'Inventory: Shrine Key'
+      : 'Inventory: (empty)'
+  }
+
+  // localStorage can throw in private-browsing/quota-exceeded edge cases — swallow and
+  // continue rather than crash gameplay over a save failure (no retry/backoff: out of scope
+  // per the issue's "autosave cadence").
+  save() {
+    const state = {
+      player: { x: this.player.x, y: this.player.y, hp: this.playerState.hp },
+      inventory: this.inventory,
+    }
+    try {
+      localStorage.setItem(SAVE_KEY, serialize(state))
+    } catch {
+      // ponytail: swallow-and-continue, see comment above.
+    }
   }
 
   // Reused by respawn() as well as the initial create() — Zane's texture is baked once and
@@ -146,6 +227,7 @@ export class MainScene extends Phaser.Scene {
 
     this.playerState = takeHit(this.playerState, now, IFRAME_MS)
     this.hpText.setText(heartString(this.playerState.hp, PLAYER_MAX_HP))
+    this.save()
 
     const angle = Phaser.Math.Angle.Between(this.zane.x, this.zane.y, this.player.x, this.player.y)
     this.physics.velocityFromRotation(angle, KNOCKBACK_SPEED, this.player.body.velocity)
@@ -154,15 +236,17 @@ export class MainScene extends Phaser.Scene {
     if (this.playerState.hp <= 0) this.respawn()
   }
 
-  // No checkpoint system — the issue explicitly stubs it. Reuse spawnPoint() and reset both
-  // combatants.
+  // Checkpoint is derived from inventory, not separate state: once the shrine key's held the
+  // door is already open, so respawning at spawnPoint() would just make the player re-walk the
+  // whole zone for nothing — respawn at the door instead.
   respawn() {
-    const spawn = spawnPoint()
-    this.player.setPosition(spawn.x, spawn.y)
+    const checkpoint = this.inventory.includes(SHRINE_KEY) ? doorPosition() : spawnPoint()
+    this.player.setPosition(checkpoint.x, checkpoint.y)
     this.playerState = { hp: PLAYER_MAX_HP, invincibleUntil: 0 }
     this.hpText.setText(heartString(this.playerState.hp, PLAYER_MAX_HP))
     if (this.zane) this.destroyZane()
     this.spawnZane()
+    this.save()
   }
 
   // Placeholder walk-cycle art: bake two Graphics frames per direction (legs swap sides) into
