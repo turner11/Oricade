@@ -59,22 +59,24 @@ export function zoneSize() {
   return { width: ZONE[0].length * TILE, height: ZONE.length * TILE }
 }
 
-export function spawnPoint() {
-  const row = ZONE.findIndex((r) => r.includes('P'))
-  const col = ZONE[row].indexOf('P')
+// Pixel centre of the one tile matching `ch` in ZONE. spawnPoint/doorPosition/keyPosition are
+// all "find the tile, then convert grid coords to pixels" — this is that lookup, shared.
+function tilePosition(ch) {
+  const row = ZONE.findIndex((r) => r.includes(ch))
+  const col = ZONE[row].indexOf(ch)
   return { x: col * TILE + TILE / 2, y: row * TILE + TILE / 2 }
+}
+
+export function spawnPoint() {
+  return tilePosition('P')
 }
 
 export function doorPosition() {
-  const row = ZONE.findIndex((r) => r.includes('D'))
-  const col = ZONE[row].indexOf('D')
-  return { x: col * TILE + TILE / 2, y: row * TILE + TILE / 2 }
+  return tilePosition('D')
 }
 
 export function keyPosition() {
-  const row = ZONE.findIndex((r) => r.includes('K'))
-  const col = ZONE[row].indexOf('K')
-  return { x: col * TILE + TILE / 2, y: row * TILE + TILE / 2 }
+  return tilePosition('K')
 }
 
 // ponytail: three lines — doesn't earn its own movement.js.
