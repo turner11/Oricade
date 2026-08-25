@@ -12,5 +12,6 @@ new Phaser.Game({
   height: HEIGHT,
   backgroundColor: '#0a0a12',
   fps: { target: TARGET_FPS },
+  physics: { default: 'arcade' },
   scene: [MainScene],
 })
