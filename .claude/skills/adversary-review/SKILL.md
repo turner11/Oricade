@@ -1,27 +1,27 @@
 ---
 name: adversary-review
-description: "Adversarially review a GitLab merge request against YAGNI and ponytail (lazy senior dev) guidelines. Flags unnecessary code, abstractions, dependencies, and boilerplate; verifies the fix targets root cause and is covered by a real check; posts notes to the MR and returns a bottom-line merge-readiness verdict. Use when reviewing an MR, gating a merge, or as the review step in fan-out-issues. Usage: /adversary-review <mr-id-or-branch>"
-argument-hint: "<mr-id-or-branch>"
-allowed-tools: Bash, Read, Grep, Glob, glab
+description: "Adversarially review a GitHub pull request against YAGNI and ponytail (lazy senior dev) guidelines. Flags unnecessary code, abstractions, dependencies, and boilerplate; verifies the fix targets root cause and is covered by a real check; posts notes to the PR and returns a bottom-line merge-readiness verdict. Use when reviewing a PR, gating a merge, or as the review step in fan-out-issues. Usage: /adversary-review <pr-number-or-branch>"
+argument-hint: "<pr-number-or-branch>"
+allowed-tools: Bash, Read, Grep, Glob, gh
 disable-model-invocation: true
 ---
 
-Play the adversary on a merge request. Your job is not to be nice — it's to find the code that shouldn't exist, then
-decide if the MR is safe to merge. Argument: `$ARGUMENTS` = MR id or branch.
+Play the adversary on a pull request. Your job is not to be nice — it's to find the code that shouldn't exist, then
+decide if the PR is safe to merge. Argument: `$ARGUMENTS` = PR number or branch.
 
-**GitLab CLI:** all commands use `glab`. If `glab` is not on `PATH`, fall back to `~/.local/bin/glab`.
+**GitHub CLI:** all commands use `gh`.
 
-**Run at higher effort.** This review demands more scrutiny than the code that produced the MR — reason carefully before
+**Run at higher effort.** This review demands more scrutiny than the code that produced the PR — reason carefully before
 writing the verdict.
 
-## Step 1 — Load the MR, Its Diff, and the Issue
+## Step 1 — Load the PR, Its Diff, and the Issue
 
 ```bash
-glab mr view <mr> --comments
-glab mr diff <mr>
+gh pr view <pr> --comments
+gh pr diff <pr>
 ```
 
-Read the linked issue (from the `Closes #N` in the description) with `glab issue view <N>` so you can judge **scope** —
+Read the linked issue (from the `Closes #N` in the description) with `gh issue view <N>` so you can judge **scope** —
 the diff should solve that issue and nothing else.
 
 **Check for a prior review.** The `--comments` output already lists the notes — scan for an earlier
@@ -50,18 +50,19 @@ Then the correctness checks ponytail does *not* skip:
   flag it. (Trivial one-liners are exempt.)
 - **Trust-boundary input validation, error handling that prevents data loss, security, accessibility** — ponytail is
   never lazy about these.
-- **Scope creep.** Anything in the diff unrelated to the issue → flag it for removal or a separate MR.
+- **Scope creep.** Anything in the diff unrelated to the issue → flag it for removal or a separate PR.
 - Any `ponytail:` shortcut comment: is the named ceiling acceptable, and is the upgrade path honest?
 
-## Step 3 — Post Notes to the MR + Return the Verdict
+## Step 3 — Post Notes to the PR + Return the Verdict
 
-Post one consolidated comment to the MR (`--unique` avoids duplicates on re-runs):
+Post one consolidated comment to the PR. Use `--edit-last --create-if-none` so re-runs update the same comment instead
+of piling up new ones (plain `--edit-last` errors when there's no prior comment to edit):
 
 ```bash
-glab mr note create <mr> --unique -m "<review body>"
+gh pr comment <pr> --body-file <review-file> --edit-last --create-if-none
 ```
 
-**Write for a human skimming the MR.** The comment must be short, concise, and self-contained — a reviewer should grasp
+**Write for a human skimming the PR.** The comment must be short, concise, and self-contained — a reviewer should grasp
 what changed, why, and your verdict without opening the diff or the issue. Keep the whole comment under ~150 words.
 Plain language, no filler, no restating the diff line by line, no praise padding. Omit any severity bullet that would
 just say "none".
@@ -71,7 +72,7 @@ Use this body format:
 ```markdown
 ### Adversary review
 
-**What & why:** <1-2 plain sentences: what this MR actually changes, why it exists, and your overall read on its
+**What & why:** <1-2 plain sentences: what this PR actually changes, why it exists, and your overall read on its
 quality (from the diff + linked issue). Self-contained — the reader shouldn't need to open anything else.>
 
 **Assessment:** <1-2 sentences judging it against YAGNI/ponytail — is it the smallest correct change?>
