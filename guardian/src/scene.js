@@ -108,10 +108,15 @@ export class MainScene extends Phaser.Scene {
     this.spawnNpc()
 
     // Scroll-factor-0 rect covers the whole camera view; alpha 0 by day, raised in setPhase().
+    // Depth 0.5 (not the default 0): Phaser stable-sorts by depth, so a same-depth sprite added
+    // *after* this rect (Ash on a phase flip, the attack VFX rect) would otherwise draw on top
+    // of it un-tinted even though it's logically "in the world". Sitting between sprites (0) and
+    // hpText (1) makes the sort order right regardless of add order.
     this.nightTint = this.add
       .rectangle(0, 0, WIDTH, HEIGHT, NIGHT_TINT, 0)
       .setOrigin(0, 0)
       .setScrollFactor(0)
+      .setDepth(0.5)
 
     this.dialogueOpen = false
     this.updateQuestLogUI()
@@ -123,7 +128,7 @@ export class MainScene extends Phaser.Scene {
     this.hpText = this.add
       .text(8, 8, heartString(this.playerState.hp, PLAYER_MAX_HP), { fontSize: '20px' })
       .setScrollFactor(0)
-      .setDepth(1) // above the night tint, which sits at the default depth 0
+      .setDepth(1) // above the night tint (depth 0.5)
 
     this.updateInventoryUI()
   }
