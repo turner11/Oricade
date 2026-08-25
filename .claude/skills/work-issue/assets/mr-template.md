@@ -4,8 +4,8 @@
 
 ## Changes
 
-- `path/to/file.js` — <what changed>
-- `path/to/file.test.js` — <N new tests>
+- `path/to/file.py` — <what changed>
+- `path/to/test_file.py` — <N new tests>
 
 ## Test plan
 
@@ -14,5 +14,3 @@
 - [ ] Manual smoke-test: <specific steps to reproduce the fix from the issue>
 
 Closes #<number>
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
