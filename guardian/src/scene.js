@@ -7,10 +7,12 @@ import {
   KNOCKBACK_SPEED,
   KNOCKBACK_MS,
   ZANE_HP,
-  ZANE_SPEED,
-  ZANE_DASH_SPEED,
   SIGHT_RANGE,
   TYPEWRITER_MS_PER_CHAR,
+  WIDTH,
+  HEIGHT,
+  NIGHT_TINT,
+  NIGHT_TINT_ALPHA,
 } from './game-config.js'
 import {
   TILE,
@@ -25,11 +27,11 @@ import {
   facingFrom,
   SHRINE_KEY,
 } from './zone.js'
-import { ZANE_PATROL, attackRect, takeHit, hasLineOfSight, heartString } from './combat.js'
+import { ZANE_PATROL, ENEMY, attackRect, takeHit, hasLineOfSight, heartString } from './combat.js'
 import { SAVE_KEY, defaultState, serialize, deserialize } from './save.js'
 import { NPC_LINE, typewriterChars, questLogEntries } from './dialogue.js'
+import { phaseAt } from './daynight.js'
 
-const ZANE_COLOR = 0xb23a48
 const KEY_COLOR = 0xffd60a
 const DOOR_COLOR = 0x6b4226
 const NPC_COLOR = 0x6a4c93
@@ -96,9 +98,25 @@ export class MainScene extends Phaser.Scene {
     this.attackUntil = 0
     this.knockbackUntil = 0
 
-    this.spawnZane()
+    // ponytail: the clock is scene-local and not persisted (save.js is untouched) — reloading
+    // restarts at dawn. Add a SAVE_VERSION field if the cycle ever needs to survive a reload.
+    this.startedAt = this.time.now
+    this.phase = phaseAt(0)
+
+    this.spawnEnemy()
     this.spawnShrine()
     this.spawnNpc()
+
+    // Scroll-factor-0 rect covers the whole camera view; alpha 0 by day, raised in setPhase().
+    // Depth 0.5 (not the default 0): Phaser stable-sorts by depth, so a same-depth sprite added
+    // *after* this rect (Ash on a phase flip, the attack VFX rect) would otherwise draw on top
+    // of it un-tinted even though it's logically "in the world". Sitting between sprites (0) and
+    // hpText (1) makes the sort order right regardless of add order.
+    this.nightTint = this.add
+      .rectangle(0, 0, WIDTH, HEIGHT, NIGHT_TINT, 0)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(0.5)
 
     this.dialogueOpen = false
     this.updateQuestLogUI()
@@ -110,12 +128,13 @@ export class MainScene extends Phaser.Scene {
     this.hpText = this.add
       .text(8, 8, heartString(this.playerState.hp, PLAYER_MAX_HP), { fontSize: '20px' })
       .setScrollFactor(0)
+      .setDepth(1) // above the night tint (depth 0.5)
 
     this.updateInventoryUI()
   }
 
   // Spawns the shrine key pickup and its locked door only if the key isn't already in the
-  // loaded save's inventory — mirrors spawnZane()'s "bake texture once" pattern.
+  // loaded save's inventory — mirrors spawnEnemy()'s "bake texture once" pattern.
   spawnShrine() {
     if (this.inventory.includes(SHRINE_KEY)) return
 
@@ -139,8 +158,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   // Static overlap target (dialogue trigger), not an obstacle — no wall collider needed. Same
-  // "bake a flat-color texture once, cache on the scene" pattern as spawnZane()/spawnShrine().
-  // ponytail: flat color block, no walk cycle — same art-pass deferral as Zane, see SPRITE_FRAMES.
+  // "bake a flat-color texture once, cache on the scene" pattern as spawnEnemy()/spawnShrine().
+  // ponytail: flat color block, no walk cycle — same art-pass deferral as the enemies, see SPRITE_FRAMES.
   spawnNpc() {
     if (!this.textures.exists('npc')) {
       const g = this.add.graphics()
@@ -155,7 +174,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // Push the key into inventory, tear down the sprite/overlap/door body — same "destroy
-  // sprite + destroy every collider bound to it" pattern as destroyZane(), since Arcade
+  // sprite + destroy every collider bound to it" pattern as destroyEnemy(), since Arcade
   // Physics leaks stale colliders otherwise. this.walls auto-drops doorBody on its destroy().
   pickupKey() {
     this.inventory.push(SHRINE_KEY)
@@ -200,35 +219,58 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
-  // Reused by respawn() as well as the initial create() — Zane's texture is baked once and
-  // cached on the scene, same pattern as createWalkAnims(). The player-Zane overlap is
-  // (re)bound here too, since respawn() replaces the Zane sprite instance.
-  // ponytail: Zane is a flat colour block with no walk cycle or wind-up tell — art pass is GoJ 11.
-  spawnZane() {
-    if (!this.textures.exists('zane')) {
+  // Reused by respawn() and setPhase() as well as the initial create() — each kind's texture
+  // is baked once (under its own key) and cached on the scene, same pattern as
+  // createWalkAnims(). The player-enemy overlap is (re)bound here too, since respawn()/
+  // setPhase() replace the sprite instance. Takes no argument: reads this.phase, so a phase
+  // flip mid-game always spawns the right kind without threading a param through respawn().
+  // ponytail: flat colour block with no walk cycle or wind-up tell — art pass is GoJ 11.
+  spawnEnemy() {
+    const kind = this.phase === 'night' ? 'ash' : 'zane'
+    const stats = ENEMY[kind]
+
+    if (!this.textures.exists(kind)) {
       const g = this.add.graphics()
-      g.fillStyle(ZANE_COLOR, 1)
+      g.fillStyle(stats.color, 1)
       g.fillRect(0, 0, SPRITE_W, SPRITE_H)
-      g.generateTexture('zane', SPRITE_W, SPRITE_H)
+      g.generateTexture(kind, SPRITE_W, SPRITE_H)
       g.destroy()
     }
 
     const start = ZANE_PATROL[0]
-    this.zane = this.physics.add.sprite(start.x, start.y, 'zane')
-    this.zaneWallCollider = this.physics.add.collider(this.zane, this.walls)
-    this.zaneOverlap = this.physics.add.overlap(this.player, this.zane, () => this.onZaneContact())
-    this.zaneState = { hp: ZANE_HP, invincibleUntil: 0 }
-    this.zaneWaypoint = 0
+    this.enemy = this.physics.add.sprite(start.x, start.y, kind)
+    this.enemyWallCollider = this.physics.add.collider(this.enemy, this.walls)
+    this.enemyOverlap = this.physics.add.overlap(this.player, this.enemy, () =>
+      this.onEnemyContact()
+    )
+    this.enemyState = { hp: ZANE_HP, invincibleUntil: 0 }
+    this.enemyWaypoint = 0
+    this.enemySpeed = stats.speed
+    this.enemyDashSpeed = stats.dashSpeed
   }
 
   // Destroys the sprite alongside its colliders — Arcade Physics doesn't drop a Collider just
   // because one side's body is gone, so leaving these out lets stale colliders pile up in the
   // physics world across swings/respawns.
-  destroyZane() {
-    this.zane.destroy()
-    this.zaneWallCollider.destroy()
-    this.zaneOverlap.destroy()
-    this.zane = null
+  destroyEnemy() {
+    this.enemy.destroy()
+    this.enemyWallCollider.destroy()
+    this.enemyOverlap.destroy()
+    this.enemy = null
+  }
+
+  // Stores the new phase, tints the zone, gates the day-only NPC, and swaps the enemy kind —
+  // respawning even if the previous enemy was already slain, since night should always bring
+  // Ash. bgm-cue is the whole audio deliverable for this issue: Phaser's own scene
+  // EventEmitter, no audio manager, no <audio>, no asset loading.
+  // ponytail: no listener consumes 'bgm-cue' yet — wire one up when real audio lands.
+  setPhase(phase) {
+    this.phase = phase
+    this.nightTint.setAlpha(phase === 'night' ? NIGHT_TINT_ALPHA : 0)
+    this.npc.setVisible(phase === 'day')
+    if (this.enemy) this.destroyEnemy()
+    this.spawnEnemy()
+    this.events.emit('bgm-cue', phase)
   }
 
   doAttack() {
@@ -242,20 +284,24 @@ export class MainScene extends Phaser.Scene {
     // extra code.
     const rect = this.add.rectangle(box.x, box.y, box.width, box.height, 0xffffff, 0.4)
     this.physics.add.existing(rect)
-    const overlap = this.zane
-      ? this.physics.add.overlap(rect, this.zane, () => {
-          this.zaneState = takeHit(this.zaneState, this.time.now, ATTACK_MS)
-          if (this.zaneState.hp <= 0) this.destroyZane()
+    const overlap = this.enemy
+      ? this.physics.add.overlap(rect, this.enemy, () => {
+          this.enemyState = takeHit(this.enemyState, this.time.now, ATTACK_MS)
+          if (this.enemyState.hp <= 0) this.destroyEnemy()
         })
       : null
     this.time.delayedCall(ATTACK_MS, () => {
       rect.destroy()
+      // Collider#destroy() only nulls its own object1/object2/callback refs and removes
+      // itself from the world — it never dereferences the enemy sprite — so this is still
+      // safe if setPhase() destroyed the enemy inside this 150ms window (see plan's "Open
+      // risks: phase flip mid-swing").
       overlap?.destroy()
     })
   }
 
-  onZaneContact() {
-    if (!this.zane) return
+  onEnemyContact() {
+    if (!this.enemy) return
     const now = this.time.now
     if (now < this.playerState.invincibleUntil) return
 
@@ -263,7 +309,7 @@ export class MainScene extends Phaser.Scene {
     this.hpText.setText(heartString(this.playerState.hp, PLAYER_MAX_HP))
     this.save()
 
-    const angle = Phaser.Math.Angle.Between(this.zane.x, this.zane.y, this.player.x, this.player.y)
+    const angle = Phaser.Math.Angle.Between(this.enemy.x, this.enemy.y, this.player.x, this.player.y)
     this.physics.velocityFromRotation(angle, KNOCKBACK_SPEED, this.player.body.velocity)
     this.knockbackUntil = now + KNOCKBACK_MS
 
@@ -278,8 +324,8 @@ export class MainScene extends Phaser.Scene {
     this.player.setPosition(checkpoint.x, checkpoint.y)
     this.playerState = { hp: PLAYER_MAX_HP, invincibleUntil: 0 }
     this.hpText.setText(heartString(this.playerState.hp, PLAYER_MAX_HP))
-    if (this.zane) this.destroyZane()
-    this.spawnZane()
+    if (this.enemy) this.destroyEnemy()
+    this.spawnEnemy()
     this.save()
   }
 
@@ -311,7 +357,7 @@ export class MainScene extends Phaser.Scene {
 
   update() {
     // Gate the input write on the knockback window — otherwise this overwrites the knockback
-    // impulse from onZaneContact() on the very next frame.
+    // impulse from onEnemyContact() on the very next frame.
     if (this.time.now >= this.knockbackUntil) {
       const left = this.cursors.left.isDown || this.wasd.A.isDown
       const right = this.cursors.right.isDown || this.wasd.D.isDown
@@ -335,7 +381,12 @@ export class MainScene extends Phaser.Scene {
 
     if (Phaser.Input.Keyboard.JustDown(this.attackKey)) this.doAttack()
 
-    const nearNpc = this.physics.overlap(this.player, this.npc)
+    const phase = phaseAt(this.time.now - this.startedAt)
+    if (phase !== this.phase) this.setPhase(phase)
+
+    // this.npc.setVisible(false) alone hides the sprite but leaves its body overlapping, so
+    // gate the dialogue trigger on the phase too — not just visibility.
+    const nearNpc = this.phase === 'day' && this.physics.overlap(this.player, this.npc)
     if (nearNpc && !this.dialogueOpen) {
       this.dialogueOpen = true
       this.dialogueStart = this.time.now
@@ -361,14 +412,14 @@ export class MainScene extends Phaser.Scene {
       }
     }
 
-    if (this.zane) {
-      const waypoint = ZANE_PATROL[this.zaneWaypoint]
-      if (hasLineOfSight(this.zane, this.player, SIGHT_RANGE)) {
-        this.physics.moveToObject(this.zane, this.player, ZANE_DASH_SPEED)
+    if (this.enemy) {
+      const waypoint = ZANE_PATROL[this.enemyWaypoint]
+      if (hasLineOfSight(this.enemy, this.player, SIGHT_RANGE)) {
+        this.physics.moveToObject(this.enemy, this.player, this.enemyDashSpeed)
       } else {
-        this.physics.moveToObject(this.zane, waypoint, ZANE_SPEED)
-        if (Phaser.Math.Distance.Between(this.zane.x, this.zane.y, waypoint.x, waypoint.y) < 4) {
-          this.zaneWaypoint = (this.zaneWaypoint + 1) % ZANE_PATROL.length
+        this.physics.moveToObject(this.enemy, waypoint, this.enemySpeed)
+        if (Phaser.Math.Distance.Between(this.enemy.x, this.enemy.y, waypoint.x, waypoint.y) < 4) {
+          this.enemyWaypoint = (this.enemyWaypoint + 1) % ZANE_PATROL.length
         }
       }
     }

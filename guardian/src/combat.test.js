@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { TILE, ZONE, isSolid, zoneSize } from './zone.js'
 import { facingFrom } from './zone.js'
 import { ATTACK_REACH, IFRAME_MS, ATTACK_MS, SIGHT_RANGE } from './game-config.js'
-import { attackRect, takeHit, hasLineOfSight, ZANE_PATROL, heartString } from './combat.js'
+import { attackRect, takeHit, hasLineOfSight, ZANE_PATROL, heartString, ENEMY } from './combat.js'
 
 describe('attackRect', () => {
   it('places the hitbox in front of the facing direction', () => {
@@ -103,5 +103,13 @@ describe('heartString', () => {
     expect(heartString(3, 3)).toBe('♥♥♥')
     expect(heartString(1, 3)).toBe('♥♡♡')
     expect(heartString(0, 3)).toBe('♡♡♡')
+  })
+})
+
+describe('ENEMY', () => {
+  it('ash is a faster zane reskin', () => {
+    expect(ENEMY.ash.speed).toBeGreaterThan(ENEMY.zane.speed)
+    expect(ENEMY.ash.dashSpeed).toBeGreaterThan(ENEMY.zane.dashSpeed)
+    expect(ENEMY.ash.color).not.toBe(ENEMY.zane.color)
   })
 })

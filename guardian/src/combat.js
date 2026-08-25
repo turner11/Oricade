@@ -2,7 +2,7 @@
 // Consumed by scene.js, which is where the untestable Phaser wiring lives.
 
 import { TILE, ZONE, isSolid } from './zone.js'
-import { ATTACK_REACH } from './game-config.js'
+import { ATTACK_REACH, ZANE_SPEED, ZANE_DASH_SPEED, ASH_SPEED_MULT } from './game-config.js'
 
 // Fixed patrol path on open grass, derived from tile coords the same way spawnPoint() does.
 export const ZANE_PATROL = [
@@ -11,6 +11,17 @@ export const ZANE_PATROL = [
   { x: 30 * TILE + TILE / 2, y: 8 * TILE + TILE / 2 },
   { x: 20 * TILE + TILE / 2, y: 8 * TILE + TILE / 2 },
 ]
+
+// One table for both enemy kinds, not two parallel ones. Ash is a reskin: same patrol, same
+// HP, just faster and a different color — see ZANE_PATROL/ZANE_HP in game-config.js.
+export const ENEMY = {
+  zane: { color: 0xb23a48, speed: ZANE_SPEED, dashSpeed: ZANE_DASH_SPEED },
+  ash: {
+    color: 0xd1cfe2,
+    speed: ZANE_SPEED * ASH_SPEED_MULT,
+    dashSpeed: ZANE_DASH_SPEED * ASH_SPEED_MULT,
+  },
+}
 
 const OFFSETS = {
   up: { x: 0, y: -ATTACK_REACH },
