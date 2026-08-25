@@ -9,6 +9,7 @@ import {
   facingFrom,
   doorPosition,
   keyPosition,
+  npcPosition,
 } from './zone.js'
 
 describe('isSolid', () => {
@@ -111,6 +112,35 @@ describe('keyPosition', () => {
     const spawn = spawnPoint()
     expect(point).not.toEqual(door)
     expect(point).not.toEqual(spawn)
+  })
+})
+
+describe('npcPosition', () => {
+  it('returns the pixel centre of the one NPC tile', () => {
+    let npcCount = 0
+    let npcRow = -1
+    let npcCol = -1
+    ZONE.forEach((row, r) => {
+      const c = row.indexOf('N')
+      if (c !== -1) {
+        npcCount += 1
+        npcRow = r
+        npcCol = c
+      }
+    })
+    expect(npcCount).toBe(1)
+
+    const point = npcPosition()
+    expect(point.x).toBe(npcCol * TILE + TILE / 2)
+    expect(point.y).toBe(npcRow * TILE + TILE / 2)
+    expect(isSolid('N')).toBe(false)
+
+    const door = doorPosition()
+    const spawn = spawnPoint()
+    const key = keyPosition()
+    expect(point).not.toEqual(door)
+    expect(point).not.toEqual(spawn)
+    expect(point).not.toEqual(key)
   })
 })
 
