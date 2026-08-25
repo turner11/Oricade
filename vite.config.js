@@ -1,5 +1,8 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: '/Oricade/',
+  base: '/Oricade/oricade/',
+  build: {
+    outDir: 'dist/oricade',
+  },
 })
