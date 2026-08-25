@@ -1,8 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { TILE, ZONE, isSolid, zoneSize } from './zone.js'
+import { TILE, ZONES, isSolid, zoneSize } from './zone.js'
 import { facingFrom } from './zone.js'
 import { ATTACK_REACH, IFRAME_MS, ATTACK_MS, SIGHT_RANGE } from './game-config.js'
-import { attackRect, takeHit, hasLineOfSight, ZANE_PATROL, heartString, ENEMY } from './combat.js'
+import {
+  attackRect,
+  takeHit,
+  hasLineOfSight,
+  heartString,
+  ENEMY,
+  ZONE_ENEMIES,
+  spreadAngles,
+} from './combat.js'
 
 describe('attackRect', () => {
   it('places the hitbox in front of the facing direction', () => {
@@ -65,36 +73,119 @@ describe('takeHit', () => {
 })
 
 describe('hasLineOfSight', () => {
-  it('is blocked by solid tiles and capped by range', () => {
-    // Internal wall sits at ZONE row 6, cols 10-14. Pick points either side of it.
+  it('is blocked by solid tiles and capped by range, reading the given zone', () => {
+    // Zone 0 internal wall sits at row 6, cols 10-14. Pick points either side of it.
     const above = { x: 12 * TILE + TILE / 2, y: 4 * TILE + TILE / 2 }
     const below = { x: 12 * TILE + TILE / 2, y: 8 * TILE + TILE / 2 }
-    expect(hasLineOfSight(above, below, SIGHT_RANGE)).toBe(false)
+    expect(hasLineOfSight(0, above, below, SIGHT_RANGE)).toBe(false)
 
     const a = { x: 2 * TILE + TILE / 2, y: 2 * TILE + TILE / 2 }
     const b = { x: 4 * TILE + TILE / 2, y: 2 * TILE + TILE / 2 }
-    expect(hasLineOfSight(a, b, SIGHT_RANGE)).toBe(true)
+    expect(hasLineOfSight(0, a, b, SIGHT_RANGE)).toBe(true)
 
     const far = { x: 30 * TILE + TILE / 2, y: 2 * TILE + TILE / 2 }
-    expect(hasLineOfSight(a, far, SIGHT_RANGE)).toBe(false)
+    expect(hasLineOfSight(0, a, far, SIGHT_RANGE)).toBe(false)
+
+    // Zone 1's pond sits at rows 14-16, cols 20-24 — a wall the zone-0 case above can't prove
+    // is being read from the right grid.
+    const pondAbove = { x: 22 * TILE + TILE / 2, y: 13 * TILE + TILE / 2 }
+    const pondBelow = { x: 22 * TILE + TILE / 2, y: 17 * TILE + TILE / 2 }
+    expect(hasLineOfSight(1, pondAbove, pondBelow, SIGHT_RANGE)).toBe(false)
   })
 })
 
-describe('ZANE_PATROL', () => {
-  it('waypoints are walkable and inside the zone', () => {
-    const { width, height } = zoneSize()
-    expect(ZANE_PATROL.length).toBeGreaterThanOrEqual(2)
+describe('ENEMY', () => {
+  const KINDS = ['zane', 'ash', 'stormy', 'whisper', 'ember', 'gale']
 
-    for (const point of ZANE_PATROL) {
-      expect(point.x).toBeGreaterThanOrEqual(0)
-      expect(point.x).toBeLessThan(width)
-      expect(point.y).toBeGreaterThanOrEqual(0)
-      expect(point.y).toBeLessThan(height)
+  it('has all six v1 kinds', () => {
+    for (const kind of KINDS) expect(ENEMY[kind]).toBeTruthy()
+  })
 
-      const col = Math.floor(point.x / TILE)
-      const row = Math.floor(point.y / TILE)
-      expect(isSolid(ZONE[row][col])).toBe(false)
-    }
+  it('ash is a faster zane reskin', () => {
+    expect(ENEMY.ash.speed).toBeGreaterThan(ENEMY.zane.speed)
+    expect(ENEMY.ash.dashSpeed).toBeGreaterThan(ENEMY.zane.dashSpeed)
+    expect(ENEMY.ash.color).not.toBe(ENEMY.zane.color)
+  })
+
+  it('gates ash and whisper to night', () => {
+    expect(ENEMY.ash.phase).toBe('night')
+    expect(ENEMY.whisper.phase).toBe('night')
+  })
+
+  it('stormy fires one projectile, whisper fires two', () => {
+    expect(ENEMY.stormy.projectiles).toBe(1)
+    expect(ENEMY.whisper.projectiles).toBe(2)
+  })
+
+  it('gale deals no contact damage but is the fastest thing in the roster', () => {
+    expect(ENEMY.gale.contactDamage).toBe(0)
+    expect(ENEMY.gale.speed).toBeGreaterThan(ENEMY.ash.speed)
+    expect(ENEMY.gale.speed).toBeGreaterThan(ENEMY.ash.dashSpeed)
+  })
+
+  it('stationary kinds carry no patrol-driving speed', () => {
+    expect(ENEMY.ember.speed).toBeUndefined()
+    expect(ENEMY.stormy.speed).toBeUndefined()
+    expect(ENEMY.whisper.speed).toBeUndefined()
+  })
+})
+
+describe('ZONE_ENEMIES', () => {
+  it('has one placement list per zone', () => {
+    expect(ZONE_ENEMIES.length).toBe(ZONES.length)
+  })
+
+  it('every placement (and patrol waypoint) sits on a walkable tile inside its own zone', () => {
+    ZONE_ENEMIES.forEach((placements, z) => {
+      const { width, height } = zoneSize(z)
+      for (const placement of placements) {
+        const points = [placement.at, ...(placement.patrol ?? [])]
+        for (const p of points) {
+          const x = p.col !== undefined ? p.col * TILE + TILE / 2 : p.x
+          const y = p.row !== undefined ? p.row * TILE + TILE / 2 : p.y
+          expect(x).toBeGreaterThanOrEqual(0)
+          expect(x).toBeLessThan(width)
+          expect(y).toBeGreaterThanOrEqual(0)
+          expect(y).toBeLessThan(height)
+
+          const col = Math.floor(x / TILE)
+          const row = Math.floor(y / TILE)
+          expect(isSolid(ZONES[z][row][col])).toBe(false)
+        }
+      }
+    })
+  })
+
+  it('places exactly the six v1 kinds across the three zones', () => {
+    const kinds = new Set(ZONE_ENEMIES.flat().map((p) => p.kind))
+    expect(kinds).toEqual(new Set(['zane', 'ash', 'stormy', 'whisper', 'ember', 'gale']))
+  })
+
+  it('places ember orthogonally adjacent to its zone door', () => {
+    ZONE_ENEMIES.forEach((placements, z) => {
+      const ember = placements.find((p) => p.kind === 'ember')
+      if (!ember) return
+
+      const zone = ZONES[z]
+      const doorRow = zone.findIndex((r) => r.includes('D'))
+      const doorCol = zone[doorRow].indexOf('D')
+
+      const dist = Math.abs(ember.at.row - doorRow) + Math.abs(ember.at.col - doorCol)
+      expect(dist).toBe(1)
+    })
+  })
+})
+
+describe('spreadAngles', () => {
+  it('returns a single angle unchanged when count is 1', () => {
+    expect(spreadAngles(0.5, 1, 0.4)).toEqual([0.5])
+  })
+
+  it('returns count angles centred on and symmetric about the given angle', () => {
+    const [a, b] = spreadAngles(1, 2, 0.6)
+    expect(a).toBeCloseTo(1 - 0.3)
+    expect(b).toBeCloseTo(1 + 0.3)
+    expect(b - a).toBeCloseTo(0.6)
   })
 })
 
@@ -103,13 +194,5 @@ describe('heartString', () => {
     expect(heartString(3, 3)).toBe('♥♥♥')
     expect(heartString(1, 3)).toBe('♥♡♡')
     expect(heartString(0, 3)).toBe('♡♡♡')
-  })
-})
-
-describe('ENEMY', () => {
-  it('ash is a faster zane reskin', () => {
-    expect(ENEMY.ash.speed).toBeGreaterThan(ENEMY.zane.speed)
-    expect(ENEMY.ash.dashSpeed).toBeGreaterThan(ENEMY.zane.dashSpeed)
-    expect(ENEMY.ash.color).not.toBe(ENEMY.zane.color)
   })
 })
