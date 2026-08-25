@@ -1,11 +1,19 @@
 ---
 name: work-issue
-description: "Work on a GitHub issue using TDD (Red→Green→Refactor) with a clean branch and draft PR. Trigger this skill whenever the user wants to pick up, fix, implement, or start working on a GitHub issue — including phrases like 'work on issue', 'fix bug #N', 'pick up an issue', 'what should I work on', or 'start a new task'. Usage: /work-issue [issue-number]"
+description: >-
+  Works on a GitLab issue using TDD (Red→Green→Refactor) with a clean branch and
+  draft MR. Use when the user wants to pick up, fix, implement, or start work on
+  a GitLab issue — e.g. "work on issue", "fix bug #N", "pick up an issue", or
+  "start a new task". Usage: /work-issue [issue-number]
 argument-hint: "[issue-number]"
-allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
+allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent, terminal, powershell, glab
+disable-model-invocation: true
 ---
 
-Work on a GitHub issue from the Oricade repo using TDD. Argument: `$ARGUMENTS`
+Work on a GitLab issue from the repo using TDD. Argument: `$ARGUMENTS`
+
+**GitLab CLI:** all issue/MR commands use `glab`. If `glab` is not on `PATH`, fall back to `~/.local/bin/glab` (
+substitute that path in every command below).
 
 ## Step 1 — Parse Arguments
 
@@ -15,9 +23,9 @@ Otherwise (non-numeric string, URL, negative number, etc.) → inform the user t
 
 ## Step 2 — Fetch & Rank Open Issues
 
-Fetch open issues:
+Fetch open issues as JSON (fields include `iid`, `title`, `labels`, `upvotes`, `created_at`):
 ```bash
-gh issue list --state open --limit 50 --json number,title,labels,reactionGroups,createdAt
+glab issue list --per-page 100 -O json
 ```
 
 **Rank by (in order):**
@@ -38,7 +46,7 @@ Ask the user which issue number they'd like to work on.
 ## Step 3 — Read the Issue & Explore Context
 
 ```bash
-gh issue view <number> --json number,title,body,labels,comments,state
+glab issue view <number> --comments
 ```
 
 If the command fails (issue doesn't exist, permissions error, etc.), report the error clearly and return to Step 2.
@@ -47,17 +55,17 @@ If the issue is closed, inform the user and ask whether to proceed anyway or pic
 **Understand the issue:**
 - What is broken or needed.
 - Expected vs. actual behavior from the issue body.
-- Make sure to understand the code base, the problem and affects before starting to work
+
 
 **Explore the relevant codebase:**
+- Make sure to understand the code base, the problem and affects before starting to work
 - Use grep/glob to find source files related to the issue (search for relevant function names, class names, keywords from the issue).
 - Read existing tests for the affected module to understand naming conventions, fixture patterns, and assertion styles.
 - Note any shared utilities or helpers that might be reusable — avoid duplicating existing code.
-- Check `SPEC.md` for the relevant section (Level Matrix, Physics Core, Input Mapping, etc.) — the issue body should reference it.
 
-For test commands, see `references/test-commands.md`.
+For test commands by layer, see `references/test-commands.md`.
 
-Print a brief summary: issue title, relevant files found, and your plan.
+Print a brief summary: issue title, affected layer(s), relevant files found, and your plan.
 
 ## Step 4 — Ensure Clean State & Create Branch
 
@@ -65,16 +73,16 @@ Print a brief summary: issue title, relevant files found, and your plan.
 ```bash
 git status --porcelain
 ```
-Ithe output is non-empty, warn the user and ask whether to stash (`git stash`), commit, or abort.
+If the output is non-empty, warn the user and ask whether to stash (`git stash`), commit, or abort.
 
-**Sync with master:**
+**Sync with main:**
 ```bash
-git checkout master && git pull origin master
+git checkout main && git pull origin main
 ```
 
 **Create the feature branch.** Choose the prefix based on labels:
 - `bug` label → `fix/issue-{number}-{slug}`
-- Anything else → `feat/issue-{number}-{slug}`
+- Anything else → `feature/issue-{number}-{slug}`
 
 Slug = issue title lowercased, spaces and punctuation replaced by `-`, truncated at a word boundary to max 40 chars (never cut mid-word).
 
@@ -109,15 +117,17 @@ Write the **minimal** code change to make the failing tests pass.
 - Before writing new logic, check for existing utility functions, helpers, or patterns in the codebase that can be reused.
 - Make sure to understand the code base, the problem and affects before starting to work
 - Keep it simple and do not modify whatever is not related directly to the task at hand
-- Make sure tp /ponytail
 - Run the targeted tests again to confirm they now pass.
 - If tests still fail, investigate and adjust the implementation.
 
 Report: `🟢 Green: <N> test(s) passing`
 
-Commit prefix based on labels:
+Commit prefix:
+-[`COMPONENT / TOPIC`]
+followed by based on labels:
 - Issue has `bug` label → `fix:`
 - Otherwise → `feat:`
+  e.g. `[LLM] fix:`
 
 ```
 <prefix> <short description>
@@ -131,7 +141,6 @@ Review the new code for:
 - Clarity and readability
 - Duplication with existing helpers/utilities
 - Consistency with surrounding code patterns (check nearby files if unsure)
-- Make sure tp /ponytail
 
 Refactor if improvements are clear. Re-run targeted tests to confirm still green.
 
@@ -144,13 +153,13 @@ refactor: clean up <description>
 
 ## Step 8 — Full Regression Check
 
-Run the **complete** test suite to catch regressions (see `references/test-commands.md` for the full-suite command).
+Run the **complete** test suite for all affected layer(s) to catch regressions (see `references/test-commands.md` for full-suite commands).
 
 If any pre-existing tests break, investigate and fix before proceeding. Do not push code that breaks existing tests.
 
 Report: `✅ Full suite: <N> tests passing, 0 failures`
 
-## Step 9 — Push + Open Draft PR
+## Step 9 — Push + Open Draft MR
 
 ```bash
 git push -u origin <branch-name>
@@ -158,22 +167,29 @@ git push -u origin <branch-name>
 
 If push fails (e.g., upstream changes), rebase and retry:
 ```bash
-git pull --rebase origin master
+git pull --rebase origin main
 git push -u origin <branch-name>
 ```
 
-Then open a draft PR using the template in `assets/pr-template.md`. Populate the template with:
+Then open a draft MR using the template in `assets/mr-template.md`. Populate the template with:
+
+- The issue number for `Closes #<number>`.
 - A 1-3 sentence summary of the change.
 - The list of files changed and what was modified in each.
 - The number of new tests added.
 - Confirmation that the full suite passes.
 - Specific manual smoke-test steps from the issue.
-- The issue number for `Closes #<number>`.
 
-```bash
-gh pr create --draft \
-  --title "<issue title>" \
-  --body "<populated template>"
+Write the filled-in template to a temp file, then create the MR (source branch defaults to the current branch).
+PowerShell:
+
+```powershell
+glab mr create --draft --target-branch main --title "<issue title>" --description (Get-Content -Raw <filled-template-file>) --remove-source-branch --yes
 ```
 
-Return the PR URL to the user.
+bash equivalent: `--description "$(cat <filled-template-file>)"`.
+
+If `glab mr create` reports an MR already exists for this branch, open it with `glab mr view --web` instead of creating
+a duplicate.
+
+Return the MR URL to the user.
