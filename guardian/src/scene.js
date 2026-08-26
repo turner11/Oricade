@@ -70,6 +70,14 @@ export class MainScene extends Phaser.Scene {
   // the loaded save so a swallowed localStorage write (save() deliberately ignores failures)
   // can't strand the player in the wrong zone.
   create(data) {
+    // Phaser reuses the same Scene instance across scene.restart() (zone warps) — these must be
+    // nulled here, not just at the point they're first assigned, or a truthy-but-destroyed
+    // reference from the previous zone survives into this one (e.g. updateDoor()'s
+    // `if (locked && !this.doorBody)` guard never fires, so a new zone's door never spawns).
+    this.doorBody = null
+    this.npc = null
+    this.keySprite = null
+
     const save = deserialize(localStorage.getItem(SAVE_KEY)) ?? defaultState()
     this.zoneIndex = data?.zone ?? save.zone
     const px = data?.x ?? save.player.x
@@ -289,39 +297,45 @@ export class MainScene extends Phaser.Scene {
   // create(), setPhase(), and respawn(). Each kind's texture is baked once (under its own key)
   // and cached on the scene, same pattern as createWalkAnims().
   // ponytail: flat colour block with no walk cycle or wind-up tell — art pass is GoJ 11.
+  // Builds one enemy record + sprite (+ its texture, baked once and cached on the scene) for a
+  // single ZONE_ENEMIES placement. Shared by spawnEnemies() (full-zone rebuild) and setPhase()
+  // (phase-gated-only rebuild) so the two don't duplicate the sprite/record construction.
+  spawnEnemy(placement, def) {
+    if (!this.textures.exists(def.kind)) {
+      const g = this.add.graphics()
+      g.fillStyle(def.color, 1)
+      g.fillRect(0, 0, SPRITE_W, SPRITE_H)
+      g.generateTexture(def.kind, SPRITE_W, SPRITE_H)
+      g.destroy()
+    }
+
+    const at = { x: placement.at.col * TILE + TILE / 2, y: placement.at.row * TILE + TILE / 2 }
+    const sprite = this.enemyGroup.create(at.x, at.y, def.kind)
+    const patrol = placement.patrol?.map((p) => ({
+      x: p.col * TILE + TILE / 2,
+      y: p.row * TILE + TILE / 2,
+    }))
+
+    const rec = {
+      sprite,
+      def,
+      state: { hp: def.hp, invincibleUntil: 0 },
+      waypoint: 0,
+      patrol,
+      nextFireAt: 0,
+      nextTurnAt: 0,
+    }
+    sprite.setData('rec', rec)
+    this.enemies.push(rec)
+  }
+
   spawnEnemies() {
     this.enemies = []
 
     for (const placement of ZONE_ENEMIES[this.zoneIndex] ?? []) {
       const def = { kind: placement.kind, ...ENEMY[placement.kind] }
       if (def.phase && def.phase !== this.phase) continue
-
-      if (!this.textures.exists(def.kind)) {
-        const g = this.add.graphics()
-        g.fillStyle(def.color, 1)
-        g.fillRect(0, 0, SPRITE_W, SPRITE_H)
-        g.generateTexture(def.kind, SPRITE_W, SPRITE_H)
-        g.destroy()
-      }
-
-      const at = { x: placement.at.col * TILE + TILE / 2, y: placement.at.row * TILE + TILE / 2 }
-      const sprite = this.enemyGroup.create(at.x, at.y, def.kind)
-      const patrol = placement.patrol?.map((p) => ({
-        x: p.col * TILE + TILE / 2,
-        y: p.row * TILE + TILE / 2,
-      }))
-
-      const rec = {
-        sprite,
-        def,
-        state: { hp: def.hp, invincibleUntil: 0 },
-        waypoint: 0,
-        patrol,
-        nextFireAt: 0,
-        nextTurnAt: 0,
-      }
-      sprite.setData('rec', rec)
-      this.enemies.push(rec)
+      this.spawnEnemy(placement, def)
     }
   }
 
@@ -344,8 +358,18 @@ export class MainScene extends Phaser.Scene {
     this.phase = phase
     this.nightTint.setAlpha(phase === 'night' ? NIGHT_TINT_ALPHA : 0)
     this.npc?.setVisible(phase === 'day')
-    this.destroyEnemies()
-    this.spawnEnemies()
+
+    // Only kinds whose ENEMY def carries a `phase` field (Zane/Ash, Stormy/Whisper) swap on a
+    // day/night flip. A kind with no `phase` field (Ember, Gale) is always-present and must
+    // survive the flip untouched — destroying/respawning it here would reset Ember to full HP
+    // and re-lock a door the player may be standing behind (single-exit shrine room), soft-locking
+    // them.
+    for (const rec of this.enemies.filter((r) => r.def.phase)) this.destroyEnemyRecord(rec)
+    for (const placement of ZONE_ENEMIES[this.zoneIndex] ?? []) {
+      const def = { kind: placement.kind, ...ENEMY[placement.kind] }
+      if (def.phase === phase) this.spawnEnemy(placement, def)
+    }
+
     this.updateDoor()
     this.events.emit('bgm-cue', phase)
   }
@@ -379,9 +403,12 @@ export class MainScene extends Phaser.Scene {
     })
   }
 
-  // Shared by melee contact and projectile hits. Knockback always lands; the HP loss (and its
-  // iframe gate) is skipped only for contactDamage: 0 (Gale) — it disrupts movement without
-  // dealing damage, which is the entirety of its "erratic mover" threat.
+  // Shared by melee contact and projectile hits. Knockback always lands; the HP loss is skipped
+  // only for contactDamage: 0 (Gale) — it disrupts movement without dealing damage, which is the
+  // entirety of its "erratic mover" threat. The invincibility window still has to advance either
+  // way: skipping takeHit() entirely for Gale left invincibleUntil frozen at 0, so contact
+  // reapplied knockback (and re-entered this branch) every single frame of overlap, pinning the
+  // player's velocity for as long as Gale stayed touching them.
   hurtPlayer(fromX, fromY, contactDamage) {
     const now = this.time.now
     if (now < this.playerState.invincibleUntil) return
@@ -390,6 +417,8 @@ export class MainScene extends Phaser.Scene {
       this.playerState = takeHit(this.playerState, now, IFRAME_MS)
       this.hpText.setText(heartString(this.playerState.hp, PLAYER_MAX_HP))
       this.save()
+    } else {
+      this.playerState = { ...this.playerState, invincibleUntil: now + IFRAME_MS }
     }
 
     const angle = Phaser.Math.Angle.Between(fromX, fromY, this.player.x, this.player.y)
@@ -404,13 +433,16 @@ export class MainScene extends Phaser.Scene {
     this.hurtPlayer(rec.sprite.x, rec.sprite.y, rec.def.contactDamage)
   }
 
-  // Checkpoint is derived from inventory, not separate state: once the shrine key's held the
+  // Checkpoint is derived from inventory, not separate state: once the shrine key's held zone 0's
   // door is already open, so respawning at spawnPoint() would just make the player re-walk the
-  // whole zone for nothing — respawn at the door instead. doorPosition() is null in a zone
-  // without a door tile (or without the key), so this always falls back to spawnPoint().
+  // whole zone for nothing — respawn at the door instead. Gated on zoneIndex === 0 because the
+  // shrine key only unlocks zone 0's door — doorPosition() still resolves for other zones (e.g.
+  // zone 1 has its own 'D' tile guarded by an Ember, unrelated to the key), so without this gate
+  // a player carrying the key who dies in a later zone gets teleported onto that zone's door tile
+  // instead of its spawn point.
   respawn() {
     const checkpoint =
-      (this.inventory.includes(SHRINE_KEY) && doorPosition(this.zoneIndex)) ||
+      (this.zoneIndex === 0 && this.inventory.includes(SHRINE_KEY) && doorPosition(this.zoneIndex)) ||
       spawnPoint(this.zoneIndex)
     this.player.setPosition(checkpoint.x, checkpoint.y)
     this.playerState = { hp: PLAYER_MAX_HP, invincibleUntil: 0 }

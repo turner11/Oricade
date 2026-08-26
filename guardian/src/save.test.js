@@ -79,28 +79,33 @@ describe('serialize/deserialize', () => {
     expect(restored).toEqual(state)
   })
 
-  it('rejects a save with a missing or non-numeric zone', () => {
+  it('defaults zone to 0 for a save with a missing or non-numeric zone', () => {
     const base = {
       version: SAVE_VERSION,
       player: { x: 0, y: 0, hp: 3 },
       inventory: [],
       talkedToNpc: false,
     }
-    expect(deserialize(JSON.stringify(base))).toBe(null)
-    expect(deserialize(JSON.stringify({ ...base, zone: '0' }))).toBe(null)
+    const expected = { player: base.player, inventory: base.inventory, talkedToNpc: false, zone: 0 }
+    expect(deserialize(JSON.stringify(base))).toEqual(expected)
+    expect(deserialize(JSON.stringify({ ...base, zone: '0' }))).toEqual(expected)
   })
 
-  it('rejects an old v2 save (no save migration)', () => {
-    expect(
-      deserialize(
-        JSON.stringify({
-          version: 2,
-          player: { x: 0, y: 0, hp: 3 },
-          inventory: [],
-          talkedToNpc: false,
-        })
-      )
-    ).toBe(null)
+  it('loads an old v2 save (pre-dating zones), defaulting zone to 0', () => {
+    const restored = deserialize(
+      JSON.stringify({
+        version: 2,
+        player: { x: 0, y: 0, hp: 3 },
+        inventory: [],
+        talkedToNpc: false,
+      })
+    )
+    expect(restored).toEqual({
+      zone: 0,
+      player: { x: 0, y: 0, hp: 3 },
+      inventory: [],
+      talkedToNpc: false,
+    })
   })
 })
 

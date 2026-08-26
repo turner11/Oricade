@@ -20,10 +20,10 @@ export function serialize(state) {
   return JSON.stringify({ version: SAVE_VERSION, ...state })
 }
 
-// Returns null on corrupt JSON, missing player/inventory/talkedToNpc/zone fields, or a schema
-// version mismatch — the caller falls back to defaultState() in every case. No migration from
-// v2: a v2 save (pre-dating zones) has no zone field and is treated the same as any other
-// mismatch.
+// Returns null on corrupt JSON, missing player/inventory/talkedToNpc fields, or a save from a
+// schema version newer than this build understands. A save from an older version (e.g. a v2 save
+// that pre-dates zones) is not rejected outright — every field it does carry is still validated,
+// and a missing/non-numeric `zone` just defaults to 0 rather than nuking the whole save.
 export function deserialize(raw) {
   let parsed
   try {
@@ -32,13 +32,12 @@ export function deserialize(raw) {
     return null
   }
 
-  if (parsed?.version !== SAVE_VERSION) return null
+  if (typeof parsed?.version !== 'number' || parsed.version > SAVE_VERSION) return null
   if (!parsed.player || !parsed.inventory) return null
   if (typeof parsed.talkedToNpc !== 'boolean') return null
-  if (typeof parsed.zone !== 'number') return null
 
   return {
-    zone: parsed.zone,
+    zone: typeof parsed.zone === 'number' ? parsed.zone : 0,
     player: parsed.player,
     inventory: parsed.inventory,
     talkedToNpc: parsed.talkedToNpc,
