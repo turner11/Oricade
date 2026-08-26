@@ -30,7 +30,8 @@
       }
       .games a:hover { border-color: #6cf; }
       .games h2 { margin: 0 0 0.5rem; }
-      .games p { margin: 0; opacity: 0.7; font-size: 0.9rem; }
+      .games .desc { margin: 0; opacity: 0.7; font-size: 0.9rem; }
+      .thumb { display: block; margin: 0 auto 1rem; width: 64px; height: 64px; }
     </style>
   </head>
   <body>
@@ -38,12 +39,24 @@
       <h1>Choose your game</h1>
       <div class="games">
         <a href="./oricade/">
+          <svg class="thumb" viewBox="0 0 64 64" fill="none" stroke="#6cf" stroke-width="3">
+            <rect x="10" y="10" width="44" height="44" rx="6" />
+            <circle cx="24" cy="32" r="5" fill="#6cf" stroke="none" />
+            <circle cx="42" cy="24" r="4" fill="#f5f5f5" stroke="none" />
+            <circle cx="42" cy="40" r="4" fill="#f5f5f5" stroke="none" />
+          </svg>
           <h2>OriCade</h2>
-          <p>Play now</p>
+          <p class="desc">8 wildly different mini-games in one arcade run — soccer, brawling, dungeons, and a boss mashup.</p>
         </a>
         <a href="./guardian/">
+          <svg class="thumb" viewBox="0 0 64 64" fill="none" stroke="#e69a5c" stroke-width="3">
+            <line x1="12" y1="20" x2="52" y2="20" />
+            <line x1="8" y1="14" x2="56" y2="14" />
+            <line x1="16" y1="14" x2="16" y2="54" />
+            <line x1="48" y1="14" x2="48" y2="54" />
+          </svg>
           <h2>Guardian of Japan</h2>
-          <p>Coming soon</p>
+          <p class="desc">Explore a living Japanese countryside, solve shrine puzzles, and defend it from spirits at night.</p>
         </a>
       </div>
     </main>
