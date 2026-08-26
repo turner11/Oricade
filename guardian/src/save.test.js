@@ -10,6 +10,7 @@ describe('defaultState', () => {
     expect(state.player).toEqual({ ...spawnPoint(0), hp: PLAYER_MAX_HP })
     expect(state.inventory).toEqual([])
     expect(state.talkedToNpc).toBe(false)
+    expect(state.skills).toEqual([])
   })
 })
 
@@ -86,7 +87,13 @@ describe('serialize/deserialize', () => {
       inventory: [],
       talkedToNpc: false,
     }
-    const expected = { player: base.player, inventory: base.inventory, talkedToNpc: false, zone: 0 }
+    const expected = {
+      player: base.player,
+      inventory: base.inventory,
+      talkedToNpc: false,
+      zone: 0,
+      skills: [],
+    }
     expect(deserialize(JSON.stringify(base))).toEqual(expected)
     expect(deserialize(JSON.stringify({ ...base, zone: '0' }))).toEqual(expected)
     // Out of range / fractional: zoneSize() would throw at boot on every reload otherwise.
@@ -109,7 +116,27 @@ describe('serialize/deserialize', () => {
       player: { x: 0, y: 0, hp: 3 },
       inventory: [],
       talkedToNpc: false,
+      skills: [],
     })
+  })
+
+  it('round-trips unlocked skills', () => {
+    const state = { ...defaultState(), skills: ['dash'] }
+    const restored = deserialize(serialize(state))
+    expect(restored).toEqual(state)
+  })
+
+  it('a v3 save (pre-dating skills) loads with no skills', () => {
+    const base = {
+      version: 3,
+      player: { x: 0, y: 0, hp: 3 },
+      inventory: [],
+      talkedToNpc: false,
+      zone: 0,
+    }
+    expect(deserialize(JSON.stringify(base)).skills).toEqual([])
+    expect(deserialize(JSON.stringify({ ...base, skills: 'not-an-array' })).skills).toEqual([])
+    expect(deserialize(JSON.stringify({ ...base, skills: null })).skills).toEqual([])
   })
 })
 
