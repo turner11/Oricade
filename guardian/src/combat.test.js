@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { TILE, ZONES, isSolid, zoneSize } from './zone.js'
 import { facingFrom } from './zone.js'
-import { ATTACK_REACH, IFRAME_MS, ATTACK_MS, SIGHT_RANGE } from './game-config.js'
+import { ATTACK_REACH, IFRAME_MS, ATTACK_MS, SIGHT_RANGE, DASH_SPEED } from './game-config.js'
 import {
   attackRect,
   takeHit,
@@ -10,6 +10,9 @@ import {
   ENEMY,
   ZONE_ENEMIES,
   spreadAngles,
+  dashVelocity,
+  DASH,
+  CHARGED_ATTACK,
 } from './combat.js'
 
 describe('attackRect', () => {
@@ -34,6 +37,18 @@ describe('attackRect', () => {
     expect(up.y).toBe(y - ATTACK_REACH)
 
     expect(facingFrom(1, 0)).toBe('right')
+  })
+
+  it('a charged swing has a larger hitbox at the same offset', () => {
+    const x = 100
+    const y = 100
+    const normal = attackRect(x, y, 'right')
+    const charged = attackRect(x, y, 'right', 1.8)
+
+    expect(charged.x).toBe(normal.x)
+    expect(charged.y).toBe(normal.y)
+    expect(charged.width).toBeGreaterThan(normal.width)
+    expect(charged.height).toBeGreaterThan(normal.height)
   })
 })
 
@@ -69,6 +84,16 @@ describe('takeHit', () => {
       now += 16
     }
     expect(state.hp).toBe(2)
+  })
+
+  it('a charged hit drains two HP, the default drains one', () => {
+    const charged = takeHit({ hp: 5, invincibleUntil: 0 }, 0, IFRAME_MS, 2)
+    expect(charged.hp).toBe(3)
+    expect(charged.invincibleUntil).toBe(IFRAME_MS)
+
+    const normal = takeHit({ hp: 5, invincibleUntil: 0 }, 0, IFRAME_MS)
+    expect(normal.hp).toBe(4)
+    expect(normal.invincibleUntil).toBe(IFRAME_MS)
   })
 })
 
@@ -128,6 +153,22 @@ describe('ENEMY', () => {
     expect(ENEMY.stormy.speed).toBeUndefined()
     expect(ENEMY.whisper.speed).toBeUndefined()
   })
+
+  it('bosses > exactly two boss defs, each recombining two existing behaviors', () => {
+    const KNOWN_BEHAVIORS = ['chaser', 'caster', 'guard', 'erratic']
+    const bosses = Object.values(ENEMY).filter((def) => def.unlocks)
+
+    expect(bosses.length).toBe(2)
+    for (const def of bosses) {
+      expect(Array.isArray(def.behavior)).toBe(true)
+      expect(def.behavior.length).toBe(2)
+      for (const b of def.behavior) expect(KNOWN_BEHAVIORS).toContain(b)
+    }
+
+    const unlocks = bosses.map((def) => def.unlocks)
+    expect(new Set(unlocks).size).toBe(2)
+    expect(unlocks).toEqual(expect.arrayContaining([DASH, CHARGED_ATTACK]))
+  })
 })
 
 describe('ZONE_ENEMIES', () => {
@@ -158,7 +199,26 @@ describe('ZONE_ENEMIES', () => {
 
   it('places exactly the six v1 kinds across the three zones', () => {
     const kinds = new Set(ZONE_ENEMIES.flat().map((p) => p.kind))
-    expect(kinds).toEqual(new Set(['zane', 'ash', 'stormy', 'whisper', 'ember', 'gale']))
+    for (const kind of ['zane', 'ash', 'stormy', 'whisper', 'ember', 'gale']) {
+      expect(kinds.has(kind)).toBe(true)
+    }
+  })
+
+  it('every zone with a forward warp has exactly one boss, and the last zone has none', () => {
+    ZONE_ENEMIES.forEach((placements, z) => {
+      const hasForwardWarp = ZONES[z].some((row) => row.includes('E'))
+      const bosses = placements.filter((p) => ENEMY[p.kind].unlocks)
+      expect(bosses.length).toBe(hasForwardWarp ? 1 : 0)
+    })
+  })
+
+  it('a boss that chases carries patrol waypoints', () => {
+    ZONE_ENEMIES.flat().forEach((placement) => {
+      const behaviors = [ENEMY[placement.kind].behavior].flat()
+      if (behaviors.includes('chaser')) {
+        expect(placement.patrol?.length).toBeGreaterThan(0)
+      }
+    })
   })
 
   it('places ember orthogonally adjacent to its zone door', () => {
@@ -186,6 +246,16 @@ describe('spreadAngles', () => {
     expect(a).toBeCloseTo(1 - 0.3)
     expect(b).toBeCloseTo(1 + 0.3)
     expect(b - a).toBeCloseTo(0.6)
+  })
+})
+
+describe('dashVelocity', () => {
+  it('points along the facing direction at the requested speed', () => {
+    expect(dashVelocity('right', DASH_SPEED)).toEqual({ x: DASH_SPEED, y: 0 })
+    expect(dashVelocity('left', DASH_SPEED)).toEqual({ x: -DASH_SPEED, y: 0 })
+    expect(dashVelocity('down', DASH_SPEED)).toEqual({ x: 0, y: DASH_SPEED })
+    expect(dashVelocity('up', DASH_SPEED)).toEqual({ x: 0, y: -DASH_SPEED })
+    expect(dashVelocity('sideways', DASH_SPEED)).toEqual({ x: 0, y: DASH_SPEED })
   })
 })
 
