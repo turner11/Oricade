@@ -23,6 +23,7 @@ import {
   CHARGED_SCALE,
   TEXT_SPEED_MIN,
   TEXT_SPEED_MAX,
+  FOOTSTEP_MS,
 } from './game-config.js'
 import {
   TILE,
@@ -56,6 +57,7 @@ import { SAVE_KEY, defaultState, serialize, deserialize } from './save.js'
 import { NPC_LINE, typewriterChars, questLogEntries } from './dialogue.js'
 import { phaseAt } from './daynight.js'
 import { KEY_ACTIONS, stickVector, keyNameFromEvent } from './settings.js'
+import { cueFor } from './audio.js'
 
 const KEY_COLOR = 0xffd60a
 const DOOR_COLOR = 0x6b4226
@@ -88,6 +90,8 @@ export class MainScene extends Phaser.Scene {
     this.doorBody = null
     this.npc = null
     this.keySprite = null
+    this.bgmOsc = null
+    this.nextFootstepAt = 0
 
     const save = deserialize(localStorage.getItem(SAVE_KEY)) ?? defaultState()
     this.zoneIndex = data?.zone ?? save.zone
@@ -192,6 +196,56 @@ export class MainScene extends Phaser.Scene {
 
     this.updateInventoryUI()
     this.wireUI()
+
+    // setPhase() only fires on a day/night flip, so without this a fresh boot or a zone warp
+    // (scene.restart(), which re-runs create()) would be silent for up to PHASE_MS. Gate on the
+    // autoplay lock — a fresh AudioContext starts 'suspended' until a user gesture unlocks it.
+    if (this.sound.locked) {
+      this.sound.once('unlocked', () => this.setBgm(this.phase))
+    } else {
+      this.setBgm(this.phase)
+    }
+  }
+
+  // Plays one short cue through Phaser's own master gain chain (this.sound.destination), so the
+  // already-shipped volume slider / mute checkbox govern it for free — see applySettings(). Guards
+  // this.sound.context for the HTML5AudioSoundManager/NoAudioSoundManager fallbacks, which have no
+  // AudioContext at all; the game must stay silent, never crash, on such a device.
+  playCue(name) {
+    const cue = cueFor(name)
+    if (!cue || !this.sound.context) return
+    const ctx = this.sound.context
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = cue.type
+    osc.frequency.value = cue.freq
+    gain.gain.setValueAtTime(0.15, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + cue.duration)
+    osc.connect(gain).connect(this.sound.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + cue.duration)
+  }
+
+  // Sustained day/night drone. Stops and nulls any existing oscillator first — Phaser reuses this
+  // Scene instance across scene.restart() (zone warps), so a stale handle from the previous zone
+  // would otherwise survive and stack a second drone on top of the new one.
+  setBgm(phase) {
+    if (this.bgmOsc) {
+      this.bgmOsc.stop()
+      this.bgmOsc.disconnect()
+      this.bgmOsc = null
+    }
+    const cue = cueFor(`bgm-${phase}`)
+    if (!cue || !this.sound.context) return
+    const ctx = this.sound.context
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = cue.type
+    osc.frequency.value = cue.freq
+    gain.gain.value = 0.04 // much quieter than SFX (0.15) or it masks them
+    osc.connect(gain).connect(this.sound.destination)
+    osc.start()
+    this.bgmOsc = osc
   }
 
   // Rebuilds this.cursors/this.keys from this.settings.keys. Arrow keys stay a fixed,
@@ -276,6 +330,7 @@ export class MainScene extends Phaser.Scene {
     const panel = document.getElementById('settings-panel')
     if (gearBtn && panel) {
       gearBtn.onclick = () => {
+        this.playCue('ui')
         panel.style.display = panel.style.display === 'block' ? 'none' : 'block'
       }
     }
@@ -324,6 +379,7 @@ export class MainScene extends Phaser.Scene {
       if (!btn) continue
       btn.textContent = `${action}: ${this.settings.keys[action]}`
       btn.onclick = () => {
+        this.playCue('ui')
         btn.textContent = `${action}: press a key…`
         document.onkeydown = (e) => {
           document.onkeydown = null
@@ -387,6 +443,7 @@ export class MainScene extends Phaser.Scene {
   // the lock — mirrors destroyEnemyRecord()'s "destroy sprite + destroy every collider/overlap
   // bound to it" pattern, since Arcade Physics leaks stale colliders otherwise.
   pickupKey() {
+    this.playCue('pickup')
     this.inventory.push(SHRINE_KEY)
     this.keySprite.destroy()
     this.keyOverlap.destroy()
@@ -460,6 +517,7 @@ export class MainScene extends Phaser.Scene {
     } else if (!locked && this.doorBody) {
       this.doorBody.destroy()
       this.doorBody = null
+      this.playCue('door')
     }
   }
 
@@ -525,10 +583,9 @@ export class MainScene extends Phaser.Scene {
     for (const rec of [...this.enemies]) this.destroyEnemyRecord(rec)
   }
 
-  // Stores the new phase, tints the zone, gates the day-only NPC, and rebuilds the enemy roster
-  // for this zone under the new phase. bgm-cue is the whole audio deliverable for this issue:
-  // Phaser's own scene EventEmitter, no audio manager, no <audio>, no asset loading.
-  // ponytail: no listener consumes 'bgm-cue' yet — wire one up when real audio lands.
+  // Stores the new phase, tints the zone, gates the day-only NPC, rebuilds the enemy roster for
+  // this zone under the new phase, and swaps the BGM drone via setBgm() — see that method and
+  // audio.js for the cue table.
   setPhase(phase) {
     this.phase = phase
     this.nightTint.setAlpha(phase === 'night' ? NIGHT_TINT_ALPHA : 0)
@@ -546,7 +603,7 @@ export class MainScene extends Phaser.Scene {
     }
 
     this.updateDoor()
-    this.events.emit('bgm-cue', phase)
+    this.setBgm(phase)
   }
 
   doAttack(damage = 1) {
@@ -748,6 +805,10 @@ export class MainScene extends Phaser.Scene {
       if (dir) {
         this.facing = dir
         this.player.anims.play(`walk-${dir}`, true)
+        if (this.time.now >= this.nextFootstepAt) {
+          this.nextFootstepAt = this.time.now + FOOTSTEP_MS
+          this.playCue('footstep')
+        }
       } else {
         this.player.anims.stop()
       }
