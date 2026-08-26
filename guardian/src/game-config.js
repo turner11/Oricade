@@ -36,9 +36,6 @@ export const CHARGE_MS = 500
 export const CHARGED_DAMAGE = 2
 export const CHARGED_SCALE = 1.8
 
-// Touch pad radius (px) — must match the #stick-pad CSS size in index.html, two declarations of
-// one number.
-export const STICK_RADIUS = 50
 export const STICK_DEADZONE = 0.25
 export const TEXT_SPEED_MIN = 5
 export const TEXT_SPEED_MAX = 100

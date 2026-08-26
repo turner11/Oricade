@@ -8,7 +8,10 @@ export const KEY_ACTIONS = ['up', 'down', 'left', 'right', 'attack', 'dash']
 
 export const DEFAULT_KEYS = { up: 'W', down: 'S', left: 'A', right: 'D', attack: 'SPACE', dash: 'SHIFT' }
 
-// Phaser KeyCodes accepted for rebinding: a single A-Z/0-9 char, or one of these named keys.
+// Phaser KeyCodes accepted for rebinding: a single A-Z letter, or one of these named keys.
+// Digits are deliberately excluded — Phaser's KeyCodes table has ZERO..NINE, not '0'..'9', so a
+// single-digit name would pass validation, get persisted, then addKey('5') would silently
+// produce a dead key that never fires.
 const NAMED_KEYS = new Set([
   'SPACE',
   'SHIFT',
@@ -26,7 +29,7 @@ const NAMED_KEYS = new Set([
 // reload — the same unrecoverable-save failure save.js's zone-range check already guards against.
 export function isValidKeyName(name) {
   if (typeof name !== 'string') return false
-  if (/^[A-Z0-9]$/.test(name)) return true
+  if (/^[A-Z]$/.test(name)) return true
   return NAMED_KEYS.has(name)
 }
 

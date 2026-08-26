@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { TYPEWRITER_MS_PER_CHAR } from './game-config.js'
 import { facingFrom } from './zone.js'
-import { KEY_ACTIONS, defaultSettings, mergeSettings, keyNameFromEvent, stickVector } from './settings.js'
+import {
+  KEY_ACTIONS,
+  defaultSettings,
+  mergeSettings,
+  isValidKeyName,
+  keyNameFromEvent,
+  stickVector,
+} from './settings.js'
 
 describe('defaultSettings', () => {
   it('has a binding for every action, a positive text speed, and audible unmuted defaults', () => {
@@ -13,6 +20,14 @@ describe('defaultSettings', () => {
     expect(settings.textSpeed).toBeGreaterThan(0)
     expect(settings.volume).toBe(1)
     expect(settings.muted).toBe(false)
+  })
+})
+
+describe('isValidKeyName', () => {
+  it('rejects digit key names — Phaser has ZERO..NINE, not "0".."9", so addKey would go dead', () => {
+    expect(isValidKeyName('5')).toBe(false)
+    expect(isValidKeyName('0')).toBe(false)
+    expect(isValidKeyName('K')).toBe(true)
   })
 })
 

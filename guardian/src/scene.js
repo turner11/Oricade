@@ -21,7 +21,6 @@ import {
   CHARGE_MS,
   CHARGED_DAMAGE,
   CHARGED_SCALE,
-  STICK_RADIUS,
   TEXT_SPEED_MIN,
   TEXT_SPEED_MAX,
 } from './game-config.js'
@@ -230,17 +229,21 @@ export class MainScene extends Phaser.Scene {
       let dragging = false
       let cx = 0
       let cy = 0
+      let radius = 0
       stickPad.onpointerdown = (e) => {
         dragging = true
         stickPad.setPointerCapture(e.pointerId)
+        // Radius comes from the pad's own rect, not a separate constant — one declaration of
+        // the pad's size (the CSS), not two that can drift out of sync.
         const rect = stickPad.getBoundingClientRect()
         cx = rect.left + rect.width / 2
         cy = rect.top + rect.height / 2
+        radius = rect.width / 2
       }
       stickPad.onpointermove = (e) => {
         if (!dragging) return
-        this.stick = stickVector(e.clientX - cx, e.clientY - cy, STICK_RADIUS)
-        stickKnob.style.transform = `translate(${this.stick.x * STICK_RADIUS}px, ${this.stick.y * STICK_RADIUS}px)`
+        this.stick = stickVector(e.clientX - cx, e.clientY - cy, radius)
+        stickKnob.style.transform = `translate(${this.stick.x * radius}px, ${this.stick.y * radius}px)`
       }
       const release = () => {
         dragging = false
@@ -277,16 +280,23 @@ export class MainScene extends Phaser.Scene {
       }
     }
 
+    // Text speed and volume are live-read/set properties (update() reads this.settings.textSpeed
+    // every frame; this.sound.volume is a direct Phaser property) — neither needs a key rebuild,
+    // so their oninput handlers skip applySettings()/removeAllKeys() entirely and only save() on
+    // 'change' (pointer release), not on every tick of the drag. Only a key rebind touches
+    // applySettings().
     const textSpeedInput = document.getElementById('text-speed-input')
     if (textSpeedInput) {
       textSpeedInput.min = TEXT_SPEED_MIN
       textSpeedInput.max = TEXT_SPEED_MAX
-      textSpeedInput.value = this.settings.textSpeed
+      // Slider position is displayed "speed", not raw ms-per-char, so dragging right (higher
+      // position) means faster typing (lower textSpeed) — the intuitive direction. Invert by
+      // reflecting around min+max.
+      textSpeedInput.value = TEXT_SPEED_MIN + TEXT_SPEED_MAX - this.settings.textSpeed
       textSpeedInput.oninput = () => {
-        this.settings.textSpeed = Number(textSpeedInput.value)
-        this.applySettings()
-        this.save()
+        this.settings.textSpeed = TEXT_SPEED_MIN + TEXT_SPEED_MAX - Number(textSpeedInput.value)
       }
+      textSpeedInput.onchange = () => this.save()
     }
 
     const volumeInput = document.getElementById('volume-input')
@@ -294,9 +304,9 @@ export class MainScene extends Phaser.Scene {
       volumeInput.value = this.settings.volume
       volumeInput.oninput = () => {
         this.settings.volume = Number(volumeInput.value)
-        this.applySettings()
-        this.save()
+        this.sound.volume = this.settings.volume
       }
+      volumeInput.onchange = () => this.save()
     }
 
     const muteInput = document.getElementById('mute-input')
@@ -304,7 +314,7 @@ export class MainScene extends Phaser.Scene {
       muteInput.checked = this.settings.muted
       muteInput.onchange = () => {
         this.settings.muted = muteInput.checked
-        this.applySettings()
+        this.sound.mute = this.settings.muted
         this.save()
       }
     }
