@@ -5,7 +5,7 @@ import { PLAYER_MAX_HP } from './game-config.js'
 import { ZONES, spawnPoint } from './zone.js'
 
 export const SAVE_KEY = 'goj-save'
-export const SAVE_VERSION = 3
+export const SAVE_VERSION = 4
 
 export function defaultState() {
   return {
@@ -13,6 +13,7 @@ export function defaultState() {
     player: { ...spawnPoint(0), hp: PLAYER_MAX_HP },
     inventory: [],
     talkedToNpc: false,
+    skills: [],
   }
 }
 
@@ -42,10 +43,13 @@ export function deserialize(raw) {
   const validZone =
     Number.isInteger(parsed.zone) && parsed.zone >= 0 && parsed.zone < ZONES.length
 
+  // Follows `zone`'s tolerate-and-default precedent, not player/inventory's reject — a v3 save
+  // (pre-dating skills) must still load rather than get wiped.
   return {
     zone: validZone ? parsed.zone : 0,
     player: parsed.player,
     inventory: parsed.inventory,
     talkedToNpc: parsed.talkedToNpc,
+    skills: Array.isArray(parsed.skills) ? parsed.skills : [],
   }
 }

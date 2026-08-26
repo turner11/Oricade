@@ -16,6 +16,12 @@ import {
   PROJECTILE_MS,
   WHISPER_SPREAD_RAD,
   GALE_TURN_MS,
+  DASH_SPEED,
+  DASH_MS,
+  DASH_COOLDOWN_MS,
+  CHARGE_MS,
+  CHARGED_DAMAGE,
+  CHARGED_SCALE,
 } from './game-config.js'
 import {
   TILE,
@@ -41,6 +47,9 @@ import {
   hasLineOfSight,
   heartString,
   spreadAngles,
+  dashVelocity,
+  DASH,
+  CHARGED_ATTACK,
 } from './combat.js'
 import { SAVE_KEY, defaultState, serialize, deserialize } from './save.js'
 import { NPC_LINE, typewriterChars, questLogEntries } from './dialogue.js'
@@ -90,6 +99,7 @@ export class MainScene extends Phaser.Scene {
 
     this.inventory = save.inventory
     this.talkedToNpc = save.talkedToNpc
+    this.skills = save.skills
 
     const walls = this.physics.add.staticGroup()
     ZONES[this.zoneIndex].forEach((row, r) => {
@@ -122,12 +132,15 @@ export class MainScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys()
     this.wasd = this.input.keyboard.addKeys('W,A,S,D')
     this.attackKey = this.input.keyboard.addKey('SPACE')
+    this.dashKey = this.input.keyboard.addKey('SHIFT')
     this.input.on('pointerdown', () => this.doAttack())
 
     this.facing = 'down'
     this.playerState = { hp, invincibleUntil: 0 }
     this.attackUntil = 0
     this.knockbackUntil = 0
+    this.nextDashAt = 0
+    this.chargeStart = 0
     this.warpLatch = isWarp(tileAt(this.zoneIndex, px, py))
 
     // ponytail: this.game.loop.time is the global engine clock, not the scene-local this.time.now
@@ -237,9 +250,12 @@ export class MainScene extends Phaser.Scene {
   updateInventoryUI() {
     const el = document.getElementById('inventory-ui')
     if (!el) return
-    el.textContent = this.inventory.includes(SHRINE_KEY)
-      ? 'Inventory: Shrine Key'
-      : 'Inventory: (empty)'
+    let text = this.inventory.includes(SHRINE_KEY) ? 'Inventory: Shrine Key' : 'Inventory: (empty)'
+    const skillNames = { [DASH]: 'Dash', [CHARGED_ATTACK]: 'Charged Attack' }
+    if (this.skills.length > 0) {
+      text += ` · Skills: ${this.skills.map((s) => skillNames[s] ?? s).join(', ')}`
+    }
+    el.textContent = text
   }
 
   updateQuestLogUI() {
@@ -258,6 +274,7 @@ export class MainScene extends Phaser.Scene {
       player: { x: this.player.x, y: this.player.y, hp: this.playerState.hp },
       inventory: this.inventory,
       talkedToNpc: this.talkedToNpc,
+      skills: this.skills,
     }
     try {
       localStorage.setItem(SAVE_KEY, serialize(state))
@@ -335,6 +352,9 @@ export class MainScene extends Phaser.Scene {
     for (const placement of ZONE_ENEMIES[this.zoneIndex] ?? []) {
       const def = { kind: placement.kind, ...ENEMY[placement.kind] }
       if (def.phase && def.phase !== this.phase) continue
+      // A defeated boss never respawns (including after respawn() on player death) — its
+      // `unlocks` id, once earned, stays in this.skills for the rest of the save.
+      if (def.unlocks && this.skills.includes(def.unlocks)) continue
       this.spawnEnemy(placement, def)
     }
   }
@@ -374,23 +394,28 @@ export class MainScene extends Phaser.Scene {
     this.events.emit('bgm-cue', phase)
   }
 
-  doAttack() {
+  doAttack(damage = 1) {
     if (this.time.now < this.attackUntil) return
     this.attackUntil = this.time.now + ATTACK_MS
 
     // ponytail: the hitbox is frozen where it spawned for its 150ms window (~18px of drift at
     // WALK_SPEED — invisible). Parent it to the player if drift ever shows.
-    const box = attackRect(this.player.x, this.player.y, this.facing)
+    const box = attackRect(this.player.x, this.player.y, this.facing, damage > 1 ? CHARGED_SCALE : 1)
     // Left visible (translucent) on purpose — it's both the hitbox and the swing VFX, for zero
     // extra code.
     const rect = this.add.rectangle(box.x, box.y, box.width, box.height, 0xffffff, 0.4)
     this.physics.add.existing(rect)
     const overlap = this.physics.add.overlap(rect, this.enemyGroup, (_rect, sprite) => {
       const rec = sprite.getData('rec')
-      rec.state = takeHit(rec.state, this.time.now, ATTACK_MS)
+      rec.state = takeHit(rec.state, this.time.now, ATTACK_MS, damage)
       if (rec.state.hp <= 0) {
         this.destroyEnemyRecord(rec)
         this.updateDoor()
+        if (rec.def.unlocks && !this.skills.includes(rec.def.unlocks)) {
+          this.skills.push(rec.def.unlocks)
+          this.updateInventoryUI()
+          this.save()
+        }
       }
     })
     this.time.delayedCall(ATTACK_MS, () => {
@@ -401,6 +426,22 @@ export class MainScene extends Phaser.Scene {
       // risks: phase flip mid-swing").
       overlap?.destroy()
     })
+  }
+
+  // Dodge-dash in the facing direction: rides this.knockbackUntil (the existing window that
+  // stops update() overwriting player velocity) rather than a second movement-override flag, and
+  // raises invincibleUntil so it's a dodge, not just a lunge.
+  doDash() {
+    const now = this.time.now
+    this.nextDashAt = now + DASH_COOLDOWN_MS
+    const v = dashVelocity(this.facing, DASH_SPEED)
+    this.player.body.velocity.x = v.x
+    this.player.body.velocity.y = v.y
+    this.knockbackUntil = now + DASH_MS
+    this.playerState = {
+      ...this.playerState,
+      invincibleUntil: Math.max(this.playerState.invincibleUntil, now + DASH_MS),
+    }
   }
 
   // Shared by melee contact and projectile hits. Knockback always lands; the HP loss is skipped
@@ -551,13 +592,34 @@ export class MainScene extends Phaser.Scene {
       }
     }
 
-    if (Phaser.Input.Keyboard.JustDown(this.attackKey)) this.doAttack()
+    if (Phaser.Input.Keyboard.JustDown(this.attackKey)) {
+      this.chargeStart = this.time.now
+      this.doAttack()
+    }
+    if (
+      Phaser.Input.Keyboard.JustUp(this.attackKey) &&
+      this.skills.includes(CHARGED_ATTACK) &&
+      this.time.now - this.chargeStart >= CHARGE_MS
+    ) {
+      this.doAttack(CHARGED_DAMAGE)
+    }
+    if (
+      Phaser.Input.Keyboard.JustDown(this.dashKey) &&
+      this.skills.includes(DASH) &&
+      this.time.now >= this.nextDashAt
+    ) {
+      this.doDash()
+    }
 
     // Latch so arriving on the destination's twin warp tile doesn't bounce the player straight
     // back — it clears once they step off the tile. scene.restart() tears the whole scene down,
-    // so nothing below this matters once a warp fires.
+    // so nothing below this matters once a warp fires. The forward warp ('E') additionally stays
+    // gated while this zone's boss (an enemy record whose def carries `unlocks`) is still alive —
+    // same "is a blocking enemy still in this.enemies?" test doorLocked() uses for Ember. 'B'
+    // (backward) is never gated.
     const tile = tileAt(this.zoneIndex, this.player.x, this.player.y)
-    if (isWarp(tile) && !this.warpLatch) {
+    const bossBlocking = tile === 'E' && this.enemies.some((r) => r.def.unlocks)
+    if (isWarp(tile) && !this.warpLatch && !bossBlocking) {
       this.warpToZone(tile)
       return
     }
@@ -597,47 +659,52 @@ export class MainScene extends Phaser.Scene {
     }
 
     for (const rec of this.enemies) {
-      switch (rec.def.behavior) {
-        case 'chaser': {
-          const waypoint = rec.patrol[rec.waypoint]
-          if (hasLineOfSight(this.zoneIndex, rec.sprite, this.player, SIGHT_RANGE)) {
-            this.physics.moveToObject(rec.sprite, this.player, rec.def.dashSpeed)
-          } else {
-            this.physics.moveToObject(rec.sprite, waypoint, rec.def.speed)
-            if (
-              Phaser.Math.Distance.Between(rec.sprite.x, rec.sprite.y, waypoint.x, waypoint.y) < 4
-            ) {
-              rec.waypoint = (rec.waypoint + 1) % rec.patrol.length
+      // A boss's `behavior` is an array of two of these same kinds, run in order — the entire
+      // "recombine two already-learned patterns" engine. A non-boss's `behavior` is a plain
+      // string; `[x].flat()` normalizes both to an array without a separate boss code path.
+      for (const behavior of [rec.def.behavior].flat())
+        switch (behavior) {
+          case 'chaser': {
+            const waypoint = rec.patrol[rec.waypoint]
+            if (hasLineOfSight(this.zoneIndex, rec.sprite, this.player, SIGHT_RANGE)) {
+              this.physics.moveToObject(rec.sprite, this.player, rec.def.dashSpeed)
+            } else {
+              this.physics.moveToObject(rec.sprite, waypoint, rec.def.speed)
+              if (
+                Phaser.Math.Distance.Between(rec.sprite.x, rec.sprite.y, waypoint.x, waypoint.y) <
+                4
+              ) {
+                rec.waypoint = (rec.waypoint + 1) % rec.patrol.length
+              }
             }
+            break
           }
-          break
-        }
-        case 'caster': {
-          if (this.time.now < rec.nextFireAt) break
-          if (!hasLineOfSight(this.zoneIndex, rec.sprite, this.player, SIGHT_RANGE)) break
-          rec.nextFireAt = this.time.now + rec.def.fireMs
-          const angle = Phaser.Math.Angle.Between(
-            rec.sprite.x,
-            rec.sprite.y,
-            this.player.x,
-            this.player.y
-          )
-          for (const a of spreadAngles(angle, rec.def.projectiles, WHISPER_SPREAD_RAD)) {
-            this.fireProjectile(rec.sprite.x, rec.sprite.y, a)
+          case 'caster': {
+            if (this.time.now < rec.nextFireAt) break
+            if (!hasLineOfSight(this.zoneIndex, rec.sprite, this.player, SIGHT_RANGE)) break
+            rec.nextFireAt = this.time.now + rec.def.fireMs
+            const angle = Phaser.Math.Angle.Between(
+              rec.sprite.x,
+              rec.sprite.y,
+              this.player.x,
+              this.player.y
+            )
+            for (const a of spreadAngles(angle, rec.def.projectiles, WHISPER_SPREAD_RAD)) {
+              this.fireProjectile(rec.sprite.x, rec.sprite.y, a)
+            }
+            break
           }
-          break
-        }
-        case 'guard':
-          break // never moves, never fires — contact damage only, via the enemyGroup overlap
-        case 'erratic': {
-          if (this.time.now >= rec.nextTurnAt) {
-            rec.nextTurnAt = this.time.now + GALE_TURN_MS
-            const angle = Phaser.Math.FloatBetween(0, Math.PI * 2)
-            this.physics.velocityFromRotation(angle, rec.def.speed, rec.sprite.body.velocity)
+          case 'guard':
+            break // never moves, never fires — contact damage only, via the enemyGroup overlap
+          case 'erratic': {
+            if (this.time.now >= rec.nextTurnAt) {
+              rec.nextTurnAt = this.time.now + GALE_TURN_MS
+              const angle = Phaser.Math.FloatBetween(0, Math.PI * 2)
+              this.physics.velocityFromRotation(angle, rec.def.speed, rec.sprite.body.velocity)
+            }
+            break
           }
-          break
         }
-      }
     }
   }
 }
