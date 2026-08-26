@@ -3,9 +3,10 @@
 
 import { PLAYER_MAX_HP } from './game-config.js'
 import { ZONES, spawnPoint } from './zone.js'
+import { defaultSettings, mergeSettings } from './settings.js'
 
 export const SAVE_KEY = 'goj-save'
-export const SAVE_VERSION = 4
+export const SAVE_VERSION = 5
 
 export function defaultState() {
   return {
@@ -14,6 +15,7 @@ export function defaultState() {
     inventory: [],
     talkedToNpc: false,
     skills: [],
+    settings: defaultSettings(),
   }
 }
 
@@ -44,12 +46,14 @@ export function deserialize(raw) {
     Number.isInteger(parsed.zone) && parsed.zone >= 0 && parsed.zone < ZONES.length
 
   // Follows `zone`'s tolerate-and-default precedent, not player/inventory's reject — a v3 save
-  // (pre-dating skills) must still load rather than get wiped.
+  // (pre-dating skills) must still load rather than get wiped. Same story for `settings` and a
+  // v4 save (pre-dating settings): mergeSettings() per-field defaults, never rejects.
   return {
     zone: validZone ? parsed.zone : 0,
     player: parsed.player,
     inventory: parsed.inventory,
     talkedToNpc: parsed.talkedToNpc,
     skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+    settings: mergeSettings(parsed.settings),
   }
 }

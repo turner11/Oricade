@@ -7,7 +7,6 @@ import {
   KNOCKBACK_SPEED,
   KNOCKBACK_MS,
   SIGHT_RANGE,
-  TYPEWRITER_MS_PER_CHAR,
   WIDTH,
   HEIGHT,
   NIGHT_TINT,
@@ -22,6 +21,9 @@ import {
   CHARGE_MS,
   CHARGED_DAMAGE,
   CHARGED_SCALE,
+  STICK_RADIUS,
+  TEXT_SPEED_MIN,
+  TEXT_SPEED_MAX,
 } from './game-config.js'
 import {
   TILE,
@@ -54,6 +56,7 @@ import {
 import { SAVE_KEY, defaultState, serialize, deserialize } from './save.js'
 import { NPC_LINE, typewriterChars, questLogEntries } from './dialogue.js'
 import { phaseAt } from './daynight.js'
+import { KEY_ACTIONS, stickVector, keyNameFromEvent } from './settings.js'
 
 const KEY_COLOR = 0xffd60a
 const DOOR_COLOR = 0x6b4226
@@ -100,6 +103,7 @@ export class MainScene extends Phaser.Scene {
     this.inventory = save.inventory
     this.talkedToNpc = save.talkedToNpc
     this.skills = save.skills
+    this.settings = save.settings
 
     const walls = this.physics.add.staticGroup()
     ZONES[this.zoneIndex].forEach((row, r) => {
@@ -129,11 +133,12 @@ export class MainScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, width, height)
     this.cameras.main.startFollow(this.player)
 
-    this.cursors = this.input.keyboard.createCursorKeys()
-    this.wasd = this.input.keyboard.addKeys('W,A,S,D')
-    this.attackKey = this.input.keyboard.addKey('SPACE')
-    this.dashKey = this.input.keyboard.addKey('SHIFT')
-    this.input.on('pointerdown', () => this.doAttack())
+    this.stick = { x: 0, y: 0 }
+    this.touchAttackRelease = false
+    this.touchAttackAt = 0
+    this.touchAttackCharged = false
+    this.touchDash = false
+    this.applySettings()
 
     this.facing = 'down'
     this.playerState = { hp, invincibleUntil: 0 }
@@ -187,6 +192,143 @@ export class MainScene extends Phaser.Scene {
       .setDepth(1) // above the night tint (depth 0.5)
 
     this.updateInventoryUI()
+    this.wireUI()
+  }
+
+  // Rebuilds this.cursors/this.keys from this.settings.keys. Arrow keys stay a fixed,
+  // non-rebindable secondary binding alongside the rebindable WASD/space/shift set.
+  // Object.fromEntries + addKey (not the addKeys object-form shortcut) — see the plan's open risk
+  // on Phaser 4's addKeys object form.
+  bindKeys() {
+    this.cursors = this.input.keyboard.createCursorKeys()
+    this.keys = Object.fromEntries(
+      Object.entries(this.settings.keys).map(([action, code]) => [
+        action,
+        this.input.keyboard.addKey(code),
+      ])
+    )
+  }
+
+  // Called from create() and every settings-panel handler so a rebind/volume/mute change takes
+  // effect immediately, no reload needed. removeAllKeys(true) also clears the cursor keys, which
+  // is why bindKeys() recreates `cursors` too, not just `this.keys`.
+  applySettings() {
+    this.input.keyboard.removeAllKeys(true)
+    this.bindKeys()
+    this.sound.volume = this.settings.volume
+    this.sound.mute = this.settings.muted
+  }
+
+  // Attaches the touch-pad and settings-panel handlers by property assignment (el.onpointerdown =
+  // ..., not addEventListener) — Phaser reuses the same Scene instance across scene.restart()
+  // (zone warps, see the comment at the top of create()), so addEventListener would stack a
+  // duplicate handler per warp. Property assignment is idempotent by construction.
+  wireUI() {
+    const stickPad = document.getElementById('stick-pad')
+    const stickKnob = document.getElementById('stick-knob')
+    if (stickPad && stickKnob) {
+      let dragging = false
+      let cx = 0
+      let cy = 0
+      stickPad.onpointerdown = (e) => {
+        dragging = true
+        stickPad.setPointerCapture(e.pointerId)
+        const rect = stickPad.getBoundingClientRect()
+        cx = rect.left + rect.width / 2
+        cy = rect.top + rect.height / 2
+      }
+      stickPad.onpointermove = (e) => {
+        if (!dragging) return
+        this.stick = stickVector(e.clientX - cx, e.clientY - cy, STICK_RADIUS)
+        stickKnob.style.transform = `translate(${this.stick.x * STICK_RADIUS}px, ${this.stick.y * STICK_RADIUS}px)`
+      }
+      const release = () => {
+        dragging = false
+        this.stick = { x: 0, y: 0 }
+        stickKnob.style.transform = 'translate(0, 0)'
+      }
+      stickPad.onpointerup = release
+      stickPad.onpointercancel = release
+    }
+
+    const attackBtn = document.getElementById('attack-btn')
+    if (attackBtn) {
+      attackBtn.onpointerdown = () => {
+        this.touchAttackAt = this.time.now
+      }
+      attackBtn.onpointerup = () => {
+        this.touchAttackCharged = this.time.now - this.touchAttackAt >= CHARGE_MS
+        this.touchAttackRelease = true
+      }
+    }
+
+    const dashBtn = document.getElementById('dash-btn')
+    if (dashBtn) {
+      dashBtn.onpointerdown = () => {
+        this.touchDash = true
+      }
+    }
+
+    const gearBtn = document.getElementById('settings-gear')
+    const panel = document.getElementById('settings-panel')
+    if (gearBtn && panel) {
+      gearBtn.onclick = () => {
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block'
+      }
+    }
+
+    const textSpeedInput = document.getElementById('text-speed-input')
+    if (textSpeedInput) {
+      textSpeedInput.min = TEXT_SPEED_MIN
+      textSpeedInput.max = TEXT_SPEED_MAX
+      textSpeedInput.value = this.settings.textSpeed
+      textSpeedInput.oninput = () => {
+        this.settings.textSpeed = Number(textSpeedInput.value)
+        this.applySettings()
+        this.save()
+      }
+    }
+
+    const volumeInput = document.getElementById('volume-input')
+    if (volumeInput) {
+      volumeInput.value = this.settings.volume
+      volumeInput.oninput = () => {
+        this.settings.volume = Number(volumeInput.value)
+        this.applySettings()
+        this.save()
+      }
+    }
+
+    const muteInput = document.getElementById('mute-input')
+    if (muteInput) {
+      muteInput.checked = this.settings.muted
+      muteInput.onchange = () => {
+        this.settings.muted = muteInput.checked
+        this.applySettings()
+        this.save()
+      }
+    }
+
+    for (const action of KEY_ACTIONS) {
+      const btn = document.getElementById(`rebind-${action}`)
+      if (!btn) continue
+      btn.textContent = `${action}: ${this.settings.keys[action]}`
+      btn.onclick = () => {
+        btn.textContent = `${action}: press a key…`
+        document.onkeydown = (e) => {
+          document.onkeydown = null
+          const name = keyNameFromEvent(e)
+          if (!name) {
+            btn.textContent = `${action}: ${this.settings.keys[action]}`
+            return
+          }
+          this.settings.keys[action] = name
+          btn.textContent = `${action}: ${name}`
+          this.applySettings()
+          this.save()
+        }
+      }
+    }
   }
 
   // Spawns the shrine key pickup only if the key isn't already in the loaded save's inventory,
@@ -267,6 +409,9 @@ export class MainScene extends Phaser.Scene {
   // localStorage can throw in private-browsing/quota-exceeded edge cases — swallow and
   // continue rather than crash gameplay over a save failure (no retry/backoff: out of scope
   // per the issue's "autosave cadence").
+  // ponytail: settings live inside this same save blob (one storage mechanism, not a second
+  // localStorage key) — a corrupt-beyond-repair save takes settings with it too. Costs nothing
+  // today since there's no "clear save" flow; split settings to its own key if one ever lands.
   save() {
     const state = {
       zone: this.zoneIndex,
@@ -274,6 +419,7 @@ export class MainScene extends Phaser.Scene {
       inventory: this.inventory,
       talkedToNpc: this.talkedToNpc,
       skills: this.skills,
+      settings: this.settings,
     }
     try {
       localStorage.setItem(SAVE_KEY, serialize(state))
@@ -571,15 +717,21 @@ export class MainScene extends Phaser.Scene {
     // Gate the input write on the knockback window — otherwise this overwrites the knockback
     // impulse from hurtPlayer() on the very next frame.
     if (this.time.now >= this.knockbackUntil) {
-      const left = this.cursors.left.isDown || this.wasd.A.isDown
-      const right = this.cursors.right.isDown || this.wasd.D.isDown
-      const up = this.cursors.up.isDown || this.wasd.W.isDown
-      const down = this.cursors.down.isDown || this.wasd.S.isDown
+      const left = this.cursors.left.isDown || this.keys.left.isDown
+      const right = this.cursors.right.isDown || this.keys.right.isDown
+      const up = this.cursors.up.isDown || this.keys.up.isDown
+      const down = this.cursors.down.isDown || this.keys.down.isDown
 
-      const vx = (right ? 1 : 0) - (left ? 1 : 0)
-      const vy = (down ? 1 : 0) - (up ? 1 : 0)
+      const kx = (right ? 1 : 0) - (left ? 1 : 0)
+      const ky = (down ? 1 : 0) - (up ? 1 : 0)
+      // Keyboard wins over the touch stick; `||` is correct here since the fallback triggers
+      // exactly on 0 (no keyboard input this frame).
+      const vx = kx || this.stick.x
+      const vy = ky || this.stick.y
 
       this.player.setVelocity(vx, vy)
+      // normalize().scale() discards the stick's analog magnitude — fine, it's effectively an
+      // 8-way stick, same speed the keyboard gives.
       this.player.body.velocity.normalize().scale(WALK_SPEED)
 
       const dir = facingFrom(vx, vy)
@@ -595,20 +747,22 @@ export class MainScene extends Phaser.Scene {
     // top of it — the swing itself fires on release, not press, so a quick tap and a held-then-
     // released charge each produce exactly one swing. Charge duration comes from Phaser's own
     // key timing (timeDown/duration) rather than a scene-tracked start time: those are reset by
-    // Phaser's resetKeys() on focus loss, so a stale press can't leak into a later tap.
-    if (Phaser.Input.Keyboard.JustUp(this.attackKey)) {
-      const charged =
-        this.skills.includes(CHARGED_ATTACK) &&
-        this.attackKey.timeDown > 0 &&
-        this.attackKey.duration >= CHARGE_MS
+    // Phaser's resetKeys() on focus loss, so a stale press can't leak into a later tap. The touch
+    // attack button mirrors this with this.touchAttackAt/touchAttackCharged (set in wireUI()'s
+    // pointerup handler) so both paths converge on one doAttack() call, not two.
+    if (Phaser.Input.Keyboard.JustUp(this.keys.attack) || this.touchAttackRelease) {
+      const chargedByKey =
+        Phaser.Input.Keyboard.JustUp(this.keys.attack) &&
+        this.keys.attack.timeDown > 0 &&
+        this.keys.attack.duration >= CHARGE_MS
+      const chargedByTouch = this.touchAttackRelease && this.touchAttackCharged
+      const charged = this.skills.includes(CHARGED_ATTACK) && (chargedByKey || chargedByTouch)
+      this.touchAttackRelease = false
       this.doAttack(charged ? CHARGED_DAMAGE : 1)
     }
-    if (
-      Phaser.Input.Keyboard.JustDown(this.dashKey) &&
-      this.skills.includes(DASH) &&
-      this.time.now >= this.nextDashAt
-    ) {
-      this.doDash()
+    if (Phaser.Input.Keyboard.JustDown(this.keys.dash) || this.touchDash) {
+      this.touchDash = false
+      if (this.skills.includes(DASH) && this.time.now >= this.nextDashAt) this.doDash()
     }
 
     // Latch so arriving on the destination's twin warp tile doesn't bounce the player straight
@@ -651,7 +805,7 @@ export class MainScene extends Phaser.Scene {
       if (this.dialogueOpen) {
         const chars = typewriterChars(
           this.time.now - this.dialogueStart,
-          TYPEWRITER_MS_PER_CHAR,
+          this.settings.textSpeed,
           NPC_LINE.length
         )
         dialogueEl.textContent = NPC_LINE.slice(0, chars)

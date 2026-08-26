@@ -13,5 +13,6 @@ new Phaser.Game({
   backgroundColor: '#0a0a12',
   fps: { target: TARGET_FPS },
   physics: { default: 'arcade' },
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [MainScene],
 })
