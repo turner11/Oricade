@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { PLAYER_MAX_HP } from './game-config.js'
-import { spawnPoint } from './zone.js'
+import { ZONES, spawnPoint } from './zone.js'
 import { SAVE_KEY, SAVE_VERSION, defaultState, serialize, deserialize } from './save.js'
 
 describe('defaultState', () => {
-  it('starts fresh at the spawn point with full HP, an empty inventory, and no NPC talked to', () => {
+  it('starts fresh in zone 0 at the spawn point with full HP, an empty inventory, and no NPC talked to', () => {
     const state = defaultState()
-    expect(state.player).toEqual({ ...spawnPoint(), hp: PLAYER_MAX_HP })
+    expect(state.zone).toBe(0)
+    expect(state.player).toEqual({ ...spawnPoint(0), hp: PLAYER_MAX_HP })
     expect(state.inventory).toEqual([])
     expect(state.talkedToNpc).toBe(false)
   })
@@ -48,7 +49,12 @@ describe('serialize/deserialize', () => {
   it('rejects a save missing talkedToNpc', () => {
     expect(
       deserialize(
-        JSON.stringify({ version: SAVE_VERSION, player: { x: 0, y: 0, hp: 3 }, inventory: [] })
+        JSON.stringify({
+          version: SAVE_VERSION,
+          player: { x: 0, y: 0, hp: 3 },
+          inventory: [],
+          zone: 0,
+        })
       )
     ).toBe(null)
   })
@@ -61,9 +67,49 @@ describe('serialize/deserialize', () => {
           player: { x: 0, y: 0, hp: 3 },
           inventory: [],
           talkedToNpc: false,
+          zone: 0,
         })
       )
     ).toBe(null)
+  })
+
+  it('round-trips the current zone', () => {
+    const state = { ...defaultState(), zone: 2 }
+    const restored = deserialize(serialize(state))
+    expect(restored).toEqual(state)
+  })
+
+  it('defaults zone to 0 when it is not a real zone index', () => {
+    const base = {
+      version: SAVE_VERSION,
+      player: { x: 0, y: 0, hp: 3 },
+      inventory: [],
+      talkedToNpc: false,
+    }
+    const expected = { player: base.player, inventory: base.inventory, talkedToNpc: false, zone: 0 }
+    expect(deserialize(JSON.stringify(base))).toEqual(expected)
+    expect(deserialize(JSON.stringify({ ...base, zone: '0' }))).toEqual(expected)
+    // Out of range / fractional: zoneSize() would throw at boot on every reload otherwise.
+    for (const zone of [ZONES.length, 99, -1, 1.5]) {
+      expect(deserialize(JSON.stringify({ ...base, zone }))).toEqual(expected)
+    }
+  })
+
+  it('loads an old v2 save (pre-dating zones), defaulting zone to 0', () => {
+    const restored = deserialize(
+      JSON.stringify({
+        version: 2,
+        player: { x: 0, y: 0, hp: 3 },
+        inventory: [],
+        talkedToNpc: false,
+      })
+    )
+    expect(restored).toEqual({
+      zone: 0,
+      player: { x: 0, y: 0, hp: 3 },
+      inventory: [],
+      talkedToNpc: false,
+    })
   })
 })
 
