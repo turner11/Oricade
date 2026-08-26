@@ -26,3 +26,16 @@ export const CUES = Object.freeze({
 export function cueFor(name) {
   return CUES[name]
 }
+
+// Stops and disconnects a previous BGM oscillator handle (if any) and returns the null it should
+// be replaced with. Pulled out of scene.js's setBgm() so the stop-before-start guard — the exact
+// thing that keeps a scene.restart() (zone warp) from stacking a second drone on top of the first
+// — is plain, Phaser-free logic a test can call directly, instead of living only inside untested
+// Phaser glue.
+export function stopBgm(osc) {
+  if (osc) {
+    osc.stop()
+    osc.disconnect()
+  }
+  return null
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CUES, cueFor } from './audio.js'
+import { CUES, cueFor, stopBgm } from './audio.js'
 
 const WAVEFORMS = ['sine', 'square', 'sawtooth', 'triangle']
 const SCOPE_CUES = ['footstep', 'door', 'pickup', 'ui', 'bgm-day', 'bgm-night']
@@ -30,5 +30,29 @@ describe('cueFor', () => {
 
   it('returns undefined for an unknown cue name', () => {
     expect(cueFor('nope')).toBeUndefined()
+  })
+})
+
+describe('stopBgm', () => {
+  // Fake oscillator: just enough to prove stopBgm() calls both stop() and disconnect() on it.
+  const fakeOsc = () => {
+    const calls = []
+    return { calls, stop: () => calls.push('stop'), disconnect: () => calls.push('disconnect') }
+  }
+
+  it('is a no-op returning null when there is no previous oscillator (first-ever call)', () => {
+    expect(stopBgm(null)).toBeNull()
+  })
+
+  it('stops and disconnects a scene.restart-style second call, never leaving both running', () => {
+    // Simulates create() calling setBgm() again on scene reuse (a zone warp): the first
+    // oscillator must be torn down before a second one is assigned to the same handle.
+    const first = fakeOsc()
+    let bgmOsc = first
+    bgmOsc = stopBgm(bgmOsc)
+    expect(first.calls).toEqual(['stop', 'disconnect'])
+    expect(bgmOsc).toBeNull()
+    bgmOsc = fakeOsc() // the new oscillator setBgm() would start
+    expect(bgmOsc).not.toBe(first)
   })
 })

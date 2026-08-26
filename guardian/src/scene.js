@@ -57,7 +57,7 @@ import { SAVE_KEY, defaultState, serialize, deserialize } from './save.js'
 import { NPC_LINE, typewriterChars, questLogEntries } from './dialogue.js'
 import { phaseAt } from './daynight.js'
 import { KEY_ACTIONS, stickVector, keyNameFromEvent } from './settings.js'
-import { cueFor } from './audio.js'
+import { cueFor, stopBgm } from './audio.js'
 
 const KEY_COLOR = 0xffd60a
 const DOOR_COLOR = 0x6b4226
@@ -69,7 +69,8 @@ const SPRITE_H = 20
 const LEG_OFFSETS = [-3, 3]
 
 // Placeholder walk-cycle colors, one per direction. ponytail: flat color blocks, not real
-// sprites — swap for a real spritesheet in the GoJ 11 art pass.
+// sprites — the GoJ 11 art pass was deferred (no GDD in-repo to work from); swap for a real
+// spritesheet whenever that pass lands.
 const SPRITE_FRAMES = {
   up: 0x3d5a80,
   down: 0xee6c4d,
@@ -90,7 +91,6 @@ export class MainScene extends Phaser.Scene {
     this.doorBody = null
     this.npc = null
     this.keySprite = null
-    this.bgmOsc = null
     this.nextFootstepAt = 0
 
     const save = deserialize(localStorage.getItem(SAVE_KEY)) ?? defaultState()
@@ -230,11 +230,7 @@ export class MainScene extends Phaser.Scene {
   // Scene instance across scene.restart() (zone warps), so a stale handle from the previous zone
   // would otherwise survive and stack a second drone on top of the new one.
   setBgm(phase) {
-    if (this.bgmOsc) {
-      this.bgmOsc.stop()
-      this.bgmOsc.disconnect()
-      this.bgmOsc = null
-    }
+    this.bgmOsc = stopBgm(this.bgmOsc)
     const cue = cueFor(`bgm-${phase}`)
     if (!cue || !this.sound.context) return
     const ctx = this.sound.context
