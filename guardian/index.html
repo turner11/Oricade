@@ -38,12 +38,107 @@
         color: #fff;
         background: rgba(0, 0, 0, 0.7);
       }
+
+      /* Touch pad + attack/dash buttons — coarse-pointer (touch/tablet) only, desktop stays
+         clean. touch-action: none is load-bearing: without it the browser eats the drag as a
+         scroll/zoom gesture and the joystick is dead on a real tablet. */
+      #touch-ui { display: none; }
+      @media (pointer: coarse) {
+        #touch-ui { display: block; }
+      }
+      #stick-pad {
+        position: fixed;
+        left: 24px;
+        bottom: 24px;
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.15);
+        touch-action: none;
+      }
+      #stick-knob {
+        position: absolute;
+        left: 25px;
+        top: 25px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.5);
+        pointer-events: none;
+      }
+      #attack-btn, #dash-btn {
+        position: fixed;
+        bottom: 32px;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: none;
+        font: 14px sans-serif;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.5);
+        touch-action: none;
+      }
+      #attack-btn { right: 100px; }
+      #dash-btn { right: 24px; }
+
+      #settings-gear {
+        position: fixed;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 4px 8px;
+        font: 14px sans-serif;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.5);
+        border: none;
+      }
+      #settings-panel {
+        display: none;
+        position: fixed;
+        top: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 12px;
+        font: 14px sans-serif;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.8);
+      }
+      #settings-panel label {
+        display: block;
+        margin: 6px 0;
+      }
+      #settings-panel button {
+        display: block;
+        width: 100%;
+        margin: 2px 0;
+        text-align: left;
+      }
     </style>
   </head>
   <body>
     <div id="inventory-ui">Inventory: (empty)</div>
     <div id="quest-log-ui"></div>
     <div id="dialogue-ui"></div>
+
+    <div id="touch-ui">
+      <div id="stick-pad"><div id="stick-knob"></div></div>
+      <button id="attack-btn">Attack</button>
+      <button id="dash-btn">Dash</button>
+    </div>
+
+    <button id="settings-gear" aria-label="Settings">⚙</button>
+    <div id="settings-panel">
+      <label>Text speed <input id="text-speed-input" type="range" /></label>
+      <label>Volume <input id="volume-input" type="range" min="0" max="1" step="0.01" /></label>
+      <label><input id="mute-input" type="checkbox" /> Mute</label>
+      <button id="rebind-up">up</button>
+      <button id="rebind-down">down</button>
+      <button id="rebind-left">left</button>
+      <button id="rebind-right">right</button>
+      <button id="rebind-attack">attack</button>
+      <button id="rebind-dash">dash</button>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

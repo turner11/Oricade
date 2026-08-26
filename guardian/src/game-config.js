@@ -35,3 +35,7 @@ export const DASH_COOLDOWN_MS = 800
 export const CHARGE_MS = 500
 export const CHARGED_DAMAGE = 2
 export const CHARGED_SCALE = 1.8
+
+export const STICK_DEADZONE = 0.25
+export const TEXT_SPEED_MIN = 5
+export const TEXT_SPEED_MAX = 100

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { PLAYER_MAX_HP } from './game-config.js'
 import { ZONES, spawnPoint } from './zone.js'
+import { defaultSettings } from './settings.js'
 import { SAVE_KEY, SAVE_VERSION, defaultState, serialize, deserialize } from './save.js'
 
 describe('defaultState', () => {
@@ -11,6 +12,7 @@ describe('defaultState', () => {
     expect(state.inventory).toEqual([])
     expect(state.talkedToNpc).toBe(false)
     expect(state.skills).toEqual([])
+    expect(state.settings).toEqual(defaultSettings())
   })
 })
 
@@ -93,6 +95,7 @@ describe('serialize/deserialize', () => {
       talkedToNpc: false,
       zone: 0,
       skills: [],
+      settings: defaultSettings(),
     }
     expect(deserialize(JSON.stringify(base))).toEqual(expected)
     expect(deserialize(JSON.stringify({ ...base, zone: '0' }))).toEqual(expected)
@@ -117,6 +120,7 @@ describe('serialize/deserialize', () => {
       inventory: [],
       talkedToNpc: false,
       skills: [],
+      settings: defaultSettings(),
     })
   })
 
@@ -137,6 +141,33 @@ describe('serialize/deserialize', () => {
     expect(deserialize(JSON.stringify(base)).skills).toEqual([])
     expect(deserialize(JSON.stringify({ ...base, skills: 'not-an-array' })).skills).toEqual([])
     expect(deserialize(JSON.stringify({ ...base, skills: null })).skills).toEqual([])
+  })
+
+  it('round-trips settings', () => {
+    const state = {
+      ...defaultState(),
+      settings: { ...defaultSettings(), muted: true, textSpeed: 5 },
+    }
+    const restored = deserialize(serialize(state))
+    expect(restored).toEqual(state)
+  })
+
+  it('a v4 save (pre-dating settings) loads with default settings', () => {
+    const base = {
+      version: 4,
+      player: { x: 0, y: 0, hp: 3 },
+      inventory: [],
+      talkedToNpc: false,
+      zone: 0,
+      skills: [],
+    }
+    expect(deserialize(JSON.stringify(base)).settings).toEqual(defaultSettings())
+    expect(deserialize(JSON.stringify({ ...base, settings: 'nope' })).settings).toEqual(
+      defaultSettings()
+    )
+    expect(deserialize(JSON.stringify({ ...base, settings: null })).settings).toEqual(
+      defaultSettings()
+    )
   })
 })
 
