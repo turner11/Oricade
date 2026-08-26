@@ -408,7 +408,9 @@ export class MainScene extends Phaser.Scene {
   // entirety of its "erratic mover" threat. The invincibility window still has to advance either
   // way: skipping takeHit() entirely for Gale left invincibleUntil frozen at 0, so contact
   // reapplied knockback (and re-entered this branch) every single frame of overlap, pinning the
-  // player's velocity for as long as Gale stayed touching them.
+  // player's velocity for as long as Gale stayed touching them. That window is only KNOCKBACK_MS
+  // for the harmless case — a full IFRAME_MS would let a player rub against Gale to buy a second
+  // of immunity to the Stormy/Whisper sharing zone 3.
   hurtPlayer(fromX, fromY, contactDamage) {
     const now = this.time.now
     if (now < this.playerState.invincibleUntil) return
@@ -418,7 +420,7 @@ export class MainScene extends Phaser.Scene {
       this.hpText.setText(heartString(this.playerState.hp, PLAYER_MAX_HP))
       this.save()
     } else {
-      this.playerState = { ...this.playerState, invincibleUntil: now + IFRAME_MS }
+      this.playerState = { ...this.playerState, invincibleUntil: now + KNOCKBACK_MS }
     }
 
     const angle = Phaser.Math.Angle.Between(fromX, fromY, this.player.x, this.player.y)

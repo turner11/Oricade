@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { PLAYER_MAX_HP } from './game-config.js'
-import { spawnPoint } from './zone.js'
+import { ZONES, spawnPoint } from './zone.js'
 import { SAVE_KEY, SAVE_VERSION, defaultState, serialize, deserialize } from './save.js'
 
 describe('defaultState', () => {
@@ -79,7 +79,7 @@ describe('serialize/deserialize', () => {
     expect(restored).toEqual(state)
   })
 
-  it('defaults zone to 0 for a save with a missing or non-numeric zone', () => {
+  it('defaults zone to 0 when it is not a real zone index', () => {
     const base = {
       version: SAVE_VERSION,
       player: { x: 0, y: 0, hp: 3 },
@@ -89,6 +89,10 @@ describe('serialize/deserialize', () => {
     const expected = { player: base.player, inventory: base.inventory, talkedToNpc: false, zone: 0 }
     expect(deserialize(JSON.stringify(base))).toEqual(expected)
     expect(deserialize(JSON.stringify({ ...base, zone: '0' }))).toEqual(expected)
+    // Out of range / fractional: zoneSize() would throw at boot on every reload otherwise.
+    for (const zone of [ZONES.length, 99, -1, 1.5]) {
+      expect(deserialize(JSON.stringify({ ...base, zone }))).toEqual(expected)
+    }
   })
 
   it('loads an old v2 save (pre-dating zones), defaulting zone to 0', () => {
