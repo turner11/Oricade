@@ -197,11 +197,11 @@ describe('ZONE_ENEMIES', () => {
     })
   })
 
-  it('places exactly the six v1 kinds across the three zones', () => {
+  it('places exactly the six v1 kinds plus the two bosses across the three zones', () => {
     const kinds = new Set(ZONE_ENEMIES.flat().map((p) => p.kind))
-    for (const kind of ['zane', 'ash', 'stormy', 'whisper', 'ember', 'gale']) {
-      expect(kinds.has(kind)).toBe(true)
-    }
+    expect(kinds).toEqual(
+      new Set(['zane', 'ash', 'stormy', 'whisper', 'ember', 'gale', 'tempest', 'torrent'])
+    )
   })
 
   it('every zone with a forward warp has exactly one boss, and the last zone has none', () => {

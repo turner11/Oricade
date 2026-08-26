@@ -75,10 +75,15 @@ export const ENEMY = {
     fireMs: BOSS_FIRE_MS,
     unlocks: DASH,
   },
+  // 'guard' is a break-only case in scene.js's switch — it recombines nothing, since contact
+  // damage already applies to every enemy via the enemyGroup overlap regardless of behavior.
+  // 'erratic' (Gale's pattern) is a real second pattern here, and keeps Torrent distinct from
+  // Tempest's ['chaser', 'caster'] pairing. Reuses GALE_SPEED rather than a new boss-speed knob.
   torrent: {
     color: 0x1a4d99,
-    behavior: ['guard', 'caster'],
+    behavior: ['erratic', 'caster'],
     hp: BOSS_HP_2,
+    speed: GALE_SPEED,
     projectiles: 2,
     fireMs: BOSS_FIRE_MS,
     unlocks: CHARGED_ATTACK,
@@ -113,8 +118,9 @@ export const ZONE_ENEMIES = [
   [
     { kind: 'stormy', at: { col: 23, row: 13 } }, // beside the pond
     { kind: 'ember', at: { col: 32, row: 22 } }, // in front of the shrine door
-    // Boss: stands between the player and zone 1's 'E' warp (col 38, row 12); stationary, so no
-    // patrol needed. Clear of that zone's pond (rows 14-16, cols 20-24) and shrine room.
+    // Boss: stands between the player and zone 1's 'E' warp (col 38, row 12); erratic movement
+    // needs no patrol waypoints (unlike chaser). Clear of that zone's pond (rows 14-16, cols
+    // 20-24) and shrine room.
     { kind: 'torrent', at: { col: 34, row: 12 } },
   ],
   [

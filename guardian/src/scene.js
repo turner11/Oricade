@@ -140,7 +140,11 @@ export class MainScene extends Phaser.Scene {
     this.attackUntil = 0
     this.knockbackUntil = 0
     this.nextDashAt = 0
-    this.chargeStart = 0
+    // Infinity, not 0: if SHIFT/SPACE was already held when scene.restart() rebuilt the key
+    // objects (Phaser seeds a fresh Key from the browser's live pressed-state), a JustUp can fire
+    // in this scene with no JustDown ever having set chargeStart — Infinity keeps
+    // `now - chargeStart` negative so that can't be mistaken for a held charge.
+    this.chargeStart = Infinity
     this.warpLatch = isWarp(tileAt(this.zoneIndex, px, py))
 
     // ponytail: this.game.loop.time is the global engine clock, not the scene-local this.time.now
@@ -592,16 +596,17 @@ export class MainScene extends Phaser.Scene {
       }
     }
 
+    // Charged attack replaces the tap-swing when held past CHARGE_MS, rather than stacking on
+    // top of it — the swing itself fires on release, not press, so a quick tap and a held-then-
+    // released charge each produce exactly one swing.
     if (Phaser.Input.Keyboard.JustDown(this.attackKey)) {
       this.chargeStart = this.time.now
-      this.doAttack()
     }
-    if (
-      Phaser.Input.Keyboard.JustUp(this.attackKey) &&
-      this.skills.includes(CHARGED_ATTACK) &&
-      this.time.now - this.chargeStart >= CHARGE_MS
-    ) {
-      this.doAttack(CHARGED_DAMAGE)
+    if (Phaser.Input.Keyboard.JustUp(this.attackKey)) {
+      const charged =
+        this.skills.includes(CHARGED_ATTACK) && this.time.now - this.chargeStart >= CHARGE_MS
+      this.doAttack(charged ? CHARGED_DAMAGE : 1)
+      this.chargeStart = Infinity
     }
     if (
       Phaser.Input.Keyboard.JustDown(this.dashKey) &&
