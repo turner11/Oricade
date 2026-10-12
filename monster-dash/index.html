@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monster Dash 🎮</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div id="p1-hud" class="player-hud">
+        <div class="hud-player-label p1-label">P1</div>
+        <div id="p1-hearts" class="hearts-display"></div>
+        <div class="hud-power" id="p1-power-hud"></div>
+      </div>
+
+      <div id="center-hud">
+        <div id="score-display">
+          <span class="score-label">SCORE</span>
+          <span id="score-value">0</span>
+        </div>
+        <div id="level-display">
+          <span class="score-label">LEVEL</span>
+          <span id="level-value">1</span>
+        </div>
+        <div id="highscore-display">
+          <span class="score-label">BEST</span>
+          <span id="highscore-value">0</span>
+        </div>
+      </div>
+
+      <div id="p2-hud" class="player-hud hidden">
+        <div class="hud-power" id="p2-power-hud"></div>
+        <div id="p2-hearts" class="hearts-display"></div>
+        <div class="hud-player-label p2-label">P2</div>
+      </div>
+
+      <button id="fullscreen-btn" title="Fullscreen (F)">⛶</button>
+    </div>
+
+    <!-- Boss HP bar -->
+    <div id="boss-bar-wrap" class="hidden">
+      <div class="boss-bar-label">👹 BOSS</div>
+      <div id="boss-bar-bg"><div id="boss-bar-fill"></div></div>
+    </div>
+
+    <!-- Pause overlay -->
+    <div id="pause-overlay" class="screen hidden">
+      <div class="screen-content">
+        <div style="font-size:72px">⏸️</div>
+        <h2 class="pause-title">PAUSED</h2>
+        <p class="subtitle">Press <kbd>P</kbd> to resume</p>
+      </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen">
+      <div class="screen-content">
+        <div class="game-logo">
+          <span class="logo-monster">🍄</span>
+          <h1 class="logo-title">MONSTER<br><span>DASH</span></h1>
+          <span class="logo-monster flip">👾</span>
+        </div>
+        <p class="subtitle">Shoot monsters. Collect bonuses. Survive!</p>
+
+        <div class="mode-select">
+          <button id="mode-1p" class="mode-btn active">1 PLAYER</button>
+          <button id="mode-2p" class="mode-btn">2 PLAYERS</button>
+        </div>
+
+        <div class="controls-wrap">
+          <div class="controls-guide">
+            <div class="controls-title">🟢 LUIGI (P1)</div>
+            <div class="key-row"><kbd>← A</kbd> / <kbd>D →</kbd> Move</div>
+            <div class="key-row"><kbd>W ↑</kbd> Jump / Double Jump</div>
+            <div class="key-row"><kbd>SPACE</kbd> Shoot</div>
+          </div>
+          <div id="p2-controls" class="controls-guide hidden">
+            <div class="controls-title">🔴 MARIO (P2)</div>
+            <div class="key-row"><kbd>J</kbd> / <kbd>L</kbd> Move</div>
+            <div class="key-row"><kbd>I</kbd> Jump / Double Jump</div>
+            <div class="key-row"><kbd>K</kbd> Shoot</div>
+          </div>
+        </div>
+        <div class="controls-footer">
+          <kbd>P</kbd> Pause &nbsp;|&nbsp; <kbd>F</kbd> Fullscreen &nbsp;|&nbsp; <kbd>R</kbd> Restart
+        </div>
+        <button id="start-btn" class="big-btn">START GAME!</button>
+      </div>
+    </div>
+
+    <!-- Game Over -->
+    <div id="gameover-screen" class="screen hidden">
+      <div class="screen-content">
+        <div class="gameover-emoji">💀</div>
+        <h2 class="gameover-title">GAME OVER!</h2>
+        <div class="result-score">
+          <div class="result-row"><span>Score</span><strong id="final-score">0</strong></div>
+          <div class="result-row"><span>Level Reached</span><strong id="final-level">1</strong></div>
+          <div class="result-row"><span>Best Score</span><strong id="final-highscore">0</strong></div>
+        </div>
+        <button id="restart-btn" class="big-btn">PLAY AGAIN!</button>
+      </div>
+    </div>
+
+    <!-- Level Clear -->
+    <div id="levelclear-screen" class="screen hidden">
+      <div class="screen-content">
+        <div style="font-size:72px">🏆</div>
+        <h2 class="levelclear-title">LEVEL CLEAR!</h2>
+        <p class="subtitle" id="levelclear-msg">Get ready for Level 2…</p>
+        <div id="levelclear-countdown" class="big-countdown">3</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
