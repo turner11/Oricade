@@ -2,8 +2,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export function assembleDist({ distDir, landingDir }) {
+export function assembleDist({ distDir, landingDir, monsterDashDir }) {
   fs.copyFileSync(path.join(landingDir, 'index.html'), path.join(distDir, 'index.html'))
+  fs.cpSync(monsterDashDir, path.join(distDir, 'monster-dash'), { recursive: true })
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url)
@@ -12,5 +13,6 @@ if (isMain) {
   assembleDist({
     distDir: path.join(root, 'dist'),
     landingDir: path.join(root, 'landing'),
+    monsterDashDir: path.join(root, 'monster-dash'),
   })
 }

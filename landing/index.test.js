@@ -13,14 +13,15 @@ describe('landing page', () => {
     expect(html).not.toMatch(/coming soon/i)
   })
 
-  it('links to both games', () => {
+  it('links to all games', () => {
     expect(html).toMatch(/href="\.\/oricade\/"/)
     expect(html).toMatch(/href="\.\/guardian\/"/)
+    expect(html).toMatch(/href="\.\/monster-dash\/"/)
   })
 
   it('gives each game a real description, not a placeholder', () => {
     const descriptions = [...html.matchAll(/<p class="desc">(.*?)<\/p>/g)].map((m) => m[1])
-    expect(descriptions).toHaveLength(2)
+    expect(descriptions).toHaveLength(3)
     for (const d of descriptions) {
       expect(d.toLowerCase()).not.toMatch(/^(play now|coming soon)$/)
       expect(d.length).toBeGreaterThan(15)
@@ -29,6 +30,6 @@ describe('landing page', () => {
 
   it('gives each game a thumbnail graphic', () => {
     const thumbCount = (html.match(/class="thumb/g) || []).length
-    expect(thumbCount).toBe(2)
+    expect(thumbCount).toBe(3)
   })
 })
